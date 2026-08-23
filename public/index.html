@@ -1,0 +1,1055 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<link rel="manifest" href="/manifest.json">
+<link rel="icon" href="/icons/icon-192.png">
+<link rel="apple-touch-icon" href="/icons/icon-192.png">
+<meta name="theme-color" content="#c1272d">
+<title>E.S.Bougara — Gestion du Club</title>
+<style>
+:root{
+  --bg:#0b0b0d;
+  --panel:#17181b;
+  --panel-2:#1f2023;
+  --line:#2b2c30;
+  --red:#c1272d;
+  --red-dark:#7e1a1f;
+  --white:#f4f1ea;
+  --muted:#9a9a9e;
+  --green:#2e7d4f;
+  --green-bg:#173324;
+  --orange:#b8862c;
+}
+*{box-sizing:border-box;}
+html,body{margin:0;padding:0;}
+body{
+  background:
+    radial-gradient(ellipse at top, rgba(193,39,45,0.10), transparent 55%),
+    radial-gradient(ellipse at bottom right, rgba(193,39,45,0.06), transparent 50%),
+    var(--bg);
+  color:var(--white);
+  font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
+  min-height:100vh;
+  -webkit-font-smoothing:antialiased;
+}
+h1,h2,h3,.display{
+  font-family:'Oswald','Arial Narrow',sans-serif;
+  text-transform:uppercase;
+  letter-spacing:0.03em;
+  font-weight:600;
+}
+#root{min-height:100vh;display:flex;flex-direction:column;}
+
+/* ---------- LOGIN ---------- */
+.login-wrap{
+  min-height:100vh;display:flex;align-items:center;justify-content:center;
+  padding:24px;
+}
+.login-card{
+  background:var(--panel);
+  border:1px solid var(--line);
+  border-radius:16px;
+  padding:36px 28px;
+  max-width:380px;width:100%;
+  text-align:center;
+  box-shadow:0 20px 60px rgba(0,0,0,0.5);
+  position:relative;
+}
+.login-card img.logo{width:120px;height:120px;object-fit:contain;margin-bottom:8px;filter:drop-shadow(0 4px 12px rgba(193,39,45,0.35));}
+.login-card .club-name{font-size:20px;color:var(--white);margin:6px 0 2px;}
+.login-card .club-sub{color:var(--red);font-size:13px;letter-spacing:0.15em;margin-bottom:2px;}
+.login-card .president{color:var(--muted);font-size:12px;margin-bottom:22px;}
+.login-card input{
+  width:100%;padding:13px 14px;border-radius:9px;border:1px solid var(--line);
+  background:var(--panel-2);color:var(--white);font-size:15px;margin-bottom:12px;text-align:center;
+  letter-spacing:0.05em;
+}
+.login-card input:focus{outline:none;border-color:var(--red);}
+.btn{
+  display:inline-block;width:100%;padding:13px 14px;border-radius:9px;border:none;
+  background:var(--red);color:#fff;font-weight:600;font-size:14px;cursor:pointer;
+  text-transform:uppercase;letter-spacing:0.08em;transition:filter .15s, transform .1s;
+}
+.btn:hover{filter:brightness(1.1);}
+.btn:active{transform:scale(0.98);}
+.btn.secondary{background:var(--panel-2);border:1px solid var(--line);color:var(--white);}
+.btn.ghost{background:transparent;border:1px solid var(--line);color:var(--muted);}
+.btn.danger{background:var(--red-dark);}
+.btn.small{padding:8px 12px;font-size:12px;width:auto;}
+.login-error{color:var(--red);font-size:13px;margin-top:-4px;margin-bottom:12px;min-height:16px;}
+
+/* ---------- HEADER ---------- */
+.topbar{
+  background:linear-gradient(180deg, #151517, #0f0f11);
+  border-bottom:2px solid var(--red);
+  padding:14px 22px;
+  display:flex;align-items:center;justify-content:space-between;gap:14px;flex-wrap:wrap;
+}
+.topbar-left{display:flex;align-items:center;gap:14px;}
+.topbar img.logo{width:52px;height:52px;object-fit:contain;}
+.topbar .titles .name{font-size:16px;color:var(--white);line-height:1.15;}
+.topbar .titles .sub{font-size:11px;color:var(--red);letter-spacing:0.1em;}
+.topbar .titles .pres{font-size:10.5px;color:var(--muted);margin-top:1px;}
+.topbar-right{display:flex;align-items:center;gap:10px;}
+.badge-role{
+  background:var(--panel-2);border:1px solid var(--line);border-radius:20px;
+  padding:6px 14px;font-size:12px;color:var(--muted);
+}
+.badge-role b{color:var(--white);}
+
+/* ---------- TABS ---------- */
+.tabs{display:flex;gap:6px;padding:14px 22px 0;flex-wrap:wrap;}
+.tab{
+  padding:11px 18px;border-radius:10px 10px 0 0;background:var(--panel);
+  color:var(--muted);font-size:13px;cursor:pointer;border:1px solid var(--line);border-bottom:none;
+  text-transform:uppercase;letter-spacing:0.05em;font-weight:600;
+}
+.tab.active{background:var(--panel-2);color:var(--white);border-bottom:2px solid var(--red);}
+.content{flex:1;padding:0 22px 40px;}
+.panel{
+  background:var(--panel-2);border:1px solid var(--line);border-radius:0 12px 12px 12px;
+  padding:22px;margin-top:0;
+}
+.panel h2{font-size:20px;margin:0 0 4px;}
+.panel .desc{color:var(--muted);font-size:13px;margin-bottom:18px;}
+
+/* ---------- LISTE ---------- */
+.toolbar{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:16px;}
+.search-input{
+  flex:1;min-width:180px;padding:11px 14px;border-radius:9px;border:1px solid var(--line);
+  background:var(--panel);color:var(--white);font-size:14px;
+}
+select.filter{
+  padding:11px 12px;border-radius:9px;border:1px solid var(--line);background:var(--panel);color:var(--white);font-size:13px;
+}
+.fab{
+  position:fixed;bottom:26px;right:26px;width:58px;height:58px;border-radius:50%;
+  background:var(--red);color:#fff;font-size:28px;border:none;cursor:pointer;
+  box-shadow:0 8px 24px rgba(193,39,45,0.5);z-index:40;
+}
+.category-group{margin-bottom:22px;}
+.category-group h3{font-size:14px;color:var(--red);border-bottom:1px solid var(--line);padding-bottom:6px;margin-bottom:10px;}
+.wrestler-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:12px;}
+.wcard{
+  background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:14px;cursor:pointer;
+  transition:border-color .15s;
+}
+.wcard:hover{border-color:var(--red);}
+.wcard-top{display:flex;gap:10px;align-items:center;}
+.wcard img.photo, .wcard .photo-ph{
+  width:48px;height:48px;border-radius:50%;object-fit:cover;background:var(--panel-2);
+  display:flex;align-items:center;justify-content:center;font-size:18px;color:var(--muted);flex-shrink:0;
+  border:1px solid var(--line);
+}
+.wcard .wname{font-size:14.5px;font-weight:600;color:var(--white);}
+.wcard .wmeta{font-size:11.5px;color:var(--muted);margin-top:1px;}
+.wcard .tags{display:flex;gap:6px;margin-top:10px;flex-wrap:wrap;}
+.tag{font-size:10.5px;padding:3px 9px;border-radius:12px;letter-spacing:0.04em;text-transform:uppercase;font-weight:600;}
+.tag.ok{background:var(--green-bg);color:#7fd9a4;}
+.tag.no{background:rgba(193,39,45,0.15);color:#ff8b8f;}
+.empty-state{text-align:center;padding:50px 20px;color:var(--muted);}
+.empty-state .emoji{font-size:44px;margin-bottom:10px;}
+
+/* ---------- MODAL ---------- */
+.overlay{
+  position:fixed;inset:0;background:rgba(0,0,0,0.65);display:flex;align-items:flex-start;justify-content:center;
+  padding:24px 14px;z-index:100;overflow-y:auto;
+}
+.modal{
+  background:var(--panel);border:1px solid var(--line);border-radius:14px;max-width:600px;width:100%;
+  padding:26px;margin:20px 0 60px;
+}
+.modal-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:18px;}
+.modal-head h2{margin:0;font-size:20px;}
+.close-x{background:none;border:none;color:var(--muted);font-size:22px;cursor:pointer;}
+.field{margin-bottom:14px;}
+.field label{display:block;font-size:12.5px;color:var(--muted);margin-bottom:6px;text-transform:uppercase;letter-spacing:0.04em;}
+.field input[type=text], .field input[type=date], .field input[type=tel], .field select, .field textarea{
+  width:100%;padding:11px 13px;border-radius:8px;border:1px solid var(--line);background:var(--panel-2);
+  color:var(--white);font-size:14px;
+}
+.field input:focus, .field select:focus{outline:none;border-color:var(--red);}
+.radio-row{display:flex;gap:22px;align-items:center;}
+.radio-opt{display:flex;align-items:center;gap:6px;font-size:14px;color:var(--white);cursor:pointer;}
+.section-label{color:var(--orange);font-size:12px;letter-spacing:0.12em;text-transform:uppercase;margin:20px 0 12px;border-bottom:1px solid var(--line);padding-bottom:6px;}
+.check-row{display:flex;align-items:center;gap:8px;margin-bottom:8px;font-size:13.5px;color:var(--white);}
+.modal-actions{display:flex;gap:10px;margin-top:22px;}
+.photo-box{
+  width:100px;height:100px;border-radius:10px;background:var(--panel-2);border:1px dashed var(--line);
+  display:flex;align-items:center;justify-content:center;overflow:hidden;margin-bottom:10px;
+}
+.photo-box img{width:100%;height:100%;object-fit:cover;}
+
+/* ---------- COTISATIONS CALENDAR ---------- */
+.months-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;}
+@media(max-width:520px){.months-grid{grid-template-columns:repeat(2,1fr);}}
+.month-cell{
+  border-radius:10px;padding:14px 8px;text-align:center;cursor:pointer;border:1px solid var(--line);
+  background:var(--panel-2);
+}
+.month-cell.paid{background:var(--green-bg);border-color:var(--green);}
+.month-cell.overdue{background:rgba(193,39,45,0.18);border-color:var(--red);}
+.month-cell .m-name{font-weight:600;font-size:14px;}
+.month-cell .m-status{font-size:11px;color:var(--muted);margin-top:3px;}
+.month-cell.paid .m-status{color:#7fd9a4;}
+.month-cell.overdue .m-status{color:#ff8b8f;}
+.month-cell .m-date{font-size:10px;color:var(--muted);margin-top:2px;}
+
+/* ---------- STATS ---------- */
+.stat-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:14px;margin-bottom:20px;}
+.stat-card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:18px;}
+.stat-card .num{font-size:30px;color:var(--red);font-weight:700;font-family:'Oswald',sans-serif;}
+.stat-card .lbl{font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:0.05em;margin-top:4px;}
+table.data-table{width:100%;border-collapse:collapse;font-size:13px;}
+table.data-table th{text-align:left;color:var(--red);text-transform:uppercase;font-size:11px;letter-spacing:0.04em;padding:9px 8px;border-bottom:1px solid var(--line);}
+table.data-table td{padding:9px 8px;border-bottom:1px solid var(--line);color:var(--white);}
+table.data-table tr:hover td{background:rgba(255,255,255,0.02);}
+
+/* ---------- ATTENDANCE ---------- */
+.attend-list{max-height:420px;overflow-y:auto;border:1px solid var(--line);border-radius:10px;}
+.attend-row{display:flex;align-items:center;justify-content:space-between;padding:12px 14px;border-bottom:1px solid var(--line);}
+.attend-row:last-child{border-bottom:none;}
+.switch{width:44px;height:24px;border-radius:14px;background:var(--green);position:relative;cursor:pointer;flex-shrink:0;}
+.switch.absent{background:var(--red-dark);}
+.switch .knob{position:absolute;top:2px;left:2px;width:20px;height:20px;border-radius:50%;background:#fff;transition:left .15s;}
+.switch.absent .knob{left:22px;}
+
+/* footer */
+.footer-sig{
+  text-align:center;padding:18px;font-size:9px;color:rgba(255,255,255,0.14);letter-spacing:0.14em;user-select:none;
+}
+
+/* print */
+#printArea{display:none;}
+@media print{
+  body *{visibility:hidden;}
+  #printArea, #printArea *{visibility:visible;}
+  #printArea{display:block;position:absolute;top:0;left:0;width:100%;padding:20px;color:#000;background:#fff;}
+  #printArea h2{color:#000;}
+  #printArea table{width:100%;border-collapse:collapse;}
+  #printArea th,#printArea td{border:1px solid #333;padding:6px 8px;font-size:12px;color:#000;text-align:left;}
+}
+.toast{
+  position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:var(--panel);border:1px solid var(--red);
+  color:var(--white);padding:11px 20px;border-radius:10px;font-size:13px;z-index:200;box-shadow:0 8px 24px rgba(0,0,0,0.5);
+}
+</style>
+</head>
+<body>
+<div id="root"></div>
+<div id="printArea"></div>
+
+<script>
+const LOGO_SRC = "data:image/png;base64,__LOGO_BASE64__";
+const CODE_ADMIN = "omar1208";
+const CODE_COACH = "esb2026";
+const MONTHS = [
+  {key:'sept',fr:'Septembre',idx:9},{key:'oct',fr:'Octobre',idx:10},{key:'nov',fr:'Novembre',idx:11},
+  {key:'dec',fr:'Décembre',idx:12},{key:'jan',fr:'Janvier',idx:1},{key:'fev',fr:'Février',idx:2},
+  {key:'mars',fr:'Mars',idx:3},{key:'avr',fr:'Avril',idx:4},{key:'mai',fr:'Mai',idx:5},
+  {key:'juin',fr:'Juin',idx:6},{key:'juil',fr:'Juillet',idx:7},{key:'aout',fr:'Août',idx:8}
+];
+const CATS = [
+  {key:'baby',   label:'Baby Judo (Éveil)'},
+  {key:'poussins',label:'Poussins (Katakit)'},
+  {key:'benjamins',label:'Benjamins (Baraem)'},
+  {key:'minimes',label:'Minimes (Asghar)'},
+  {key:'cadets', label:'Cadets (Achbal)'},
+  {key:'juniors',label:'Juniors (Aouasit)'},
+  {key:'seniors',label:'Seniors (Akabir)'}
+];
+
+let state = {
+  role: null,           // 'admin' | 'coach'
+  coachName: '',
+  loginError: '',
+  loading: true,
+  data: { wrestlers: [], sessions: [], archives: [], settings: { cotisation: 1500, refYear: 2026 } },
+  activeTab: 'lutteurs',
+  search: '',
+  catFilter: 'all',
+  modal: null,          // {type:'wrestler'|'cotisations'|'attendance', payload}
+  editingWrestler: null,
+  photoDraft: null,
+  toast: null
+};
+
+function uid(){ return 'w' + Date.now() + Math.random().toString(36).slice(2,7); }
+function todayISO(){ const d=new Date(); return d.toISOString().slice(0,10); }
+function fmtDate(iso){ if(!iso) return '—'; const [y,m,d]=iso.split('-'); return d+'/'+m+'/'+y; }
+
+function categorize(birthDateISO, refYear){
+  if(!birthDateISO) return CATS[0];
+  const y = parseInt(birthDateISO.slice(0,4),10);
+  const diff = refYear - y;
+  if(diff>=20) return CATS[6];
+  if(diff>=17) return CATS[5];
+  if(diff>=14) return CATS[4];
+  if(diff>=12) return CATS[3];
+  if(diff>=10) return CATS[2];
+  if(diff>=8)  return CATS[1];
+  return CATS[0];
+}
+
+function emptyCotisations(){
+  const o = {};
+  MONTHS.forEach(m => o[m.key] = { paye:false, date:null });
+  return o;
+}
+
+async function loadData(){
+  try{
+    const res = await fetch('/api/data');
+    if(res.ok){
+      const parsed = await res.json();
+      if(parsed){
+        state.data = Object.assign({wrestlers:[],sessions:[],archives:[],settings:{cotisation:1500,refYear:2026}}, parsed);
+        if(!state.data.archives) state.data.archives = [];
+      }
+    }
+  }catch(e){
+    // pas encore de données -> on démarre avec une base vide
+  }
+  state.loading = false;
+  render();
+}
+
+let saveTimer = null;
+function saveData(){
+  clearTimeout(saveTimer);
+  saveTimer = setTimeout(async ()=>{
+    try{
+      const res = await fetch('/api/data', {
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body: JSON.stringify(state.data)
+      });
+      if(!res.ok) throw new Error('save failed');
+    }catch(e){
+      showToast("Erreur d'enregistrement — vérifiez votre connexion internet.");
+    }
+  }, 250);
+}
+
+function showToast(msg){
+  state.toast = msg;
+  render();
+  setTimeout(()=>{ state.toast=null; render(); }, 2500);
+}
+
+/* ================= LOGIN ================= */
+function tryLogin(code){
+  code = code.trim();
+  if(code === CODE_ADMIN){
+    state.role='admin'; state.coachName='Administrateur';
+    render();
+  } else if(code === CODE_COACH){
+    state.role='coach-pending';
+    render();
+  } else {
+    state.loginError = 'Code incorrect.';
+    render();
+  }
+}
+function confirmCoachName(name){
+  if(!name || !name.trim()){ state.loginError='Merci de saisir votre nom.'; render(); return; }
+  state.role='coach'; state.coachName=name.trim(); state.loginError='';
+  render();
+}
+function logout(){
+  state.role=null; state.coachName=''; state.loginError=''; state.activeTab='lutteurs';
+  render();
+}
+
+/* ================= RENDER ROOT ================= */
+function render(){
+  const root = document.getElementById('root');
+  if(state.loading){
+    root.innerHTML = `<div class="login-wrap"><div style="color:var(--muted)">Chargement…</div></div>`;
+    return;
+  }
+  if(!state.role){
+    root.innerHTML = renderLogin();
+  } else if(state.role==='coach-pending'){
+    root.innerHTML = renderCoachNamePrompt();
+  } else {
+    root.innerHTML = renderApp();
+  }
+  attachHandlers();
+}
+
+function renderLogin(){
+  return `
+  <div class="login-wrap">
+    <div class="login-card">
+      <img class="logo" src="${LOGO_SRC}" alt="logo"/>
+      <div class="club-sub">CLUB SPORTIF AMATEUR</div>
+      <div class="club-name">École Sportive Bougara</div>
+      <div class="club-sub" style="margin-top:2px;">E.S.BOUGARA</div>
+      <div class="president">Président : Omar Benelkaid</div>
+      <input id="loginCode" type="password" placeholder="Code d'accès" autocomplete="off"/>
+      <div class="login-error">${state.loginError||''}</div>
+      <button class="btn" id="btnLogin">Entrer</button>
+      <div class="footer-sig">Ραχεντι Χαντιλ</div>
+    </div>
+  </div>`;
+}
+
+function renderCoachNamePrompt(){
+  return `
+  <div class="login-wrap">
+    <div class="login-card">
+      <img class="logo" src="${LOGO_SRC}" alt="logo"/>
+      <div class="club-name">Bienvenue Entraîneur</div>
+      <div class="president" style="margin-bottom:22px;">Merci d'indiquer votre nom pour continuer</div>
+      <input id="coachNameInput" type="text" placeholder="Votre nom"/>
+      <div class="login-error">${state.loginError||''}</div>
+      <button class="btn" id="btnCoachOk">Continuer</button>
+      <button class="btn ghost" id="btnCoachBack" style="margin-top:10px;">Retour</button>
+    </div>
+  </div>`;
+}
+
+function renderApp(){
+  const tabs = [
+    {key:'lutteurs', label:'Judokas'},
+    {key:'assurance', label:'Assurance'},
+    {key:'presences', label:'Présences'},
+  ];
+  if(state.role==='admin') tabs.push({key:'stats', label:'Statistiques'});
+  tabs.push({key:'reglages', label:'Réglages'});
+
+  return `
+  <div class="topbar">
+    <div class="topbar-left">
+      <img class="logo" src="${LOGO_SRC}"/>
+      <div class="titles">
+        <div class="name">Club Sportif Amateur — École Sportive Bougara</div>
+        <div class="sub">E.S.BOUGARA</div>
+        <div class="pres">Président : Omar Benelkaid</div>
+      </div>
+    </div>
+    <div class="topbar-right">
+      <span class="badge-role">${state.role==='admin'?'Administrateur':'Entraîneur : <b>'+escapeHtml(state.coachName)+'</b>'}</span>
+      <button class="btn secondary small" id="btnLogout">Quitter</button>
+    </div>
+  </div>
+  <div class="tabs">
+    ${tabs.map(t=>`<div class="tab ${state.activeTab===t.key?'active':''}" data-tab="${t.key}">${t.label}</div>`).join('')}
+  </div>
+  <div class="content"><div class="panel">${renderTabContent()}</div></div>
+  ${state.activeTab==='lutteurs' && !state.modal ? `<button class="fab" id="btnAddWrestler">+</button>` : ''}
+  ${state.modal ? renderModal() : ''}
+  ${state.toast ? `<div class="toast">${escapeHtml(state.toast)}</div>` : ''}
+  `;
+}
+
+function escapeHtml(s){
+  return String(s==null?'':s).replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
+/* ================= TAB: LUTTEURS ================= */
+function getFilteredWrestlers(){
+  let list = state.data.wrestlers.slice();
+  if(state.search.trim()){
+    const s = state.search.trim().toLowerCase();
+    list = list.filter(w => (w.nom+' '+w.prenom).toLowerCase().includes(s));
+  }
+  if(state.catFilter!=='all'){
+    list = list.filter(w => categorize(w.dateNaissance, state.data.settings.refYear).key === state.catFilter);
+  }
+  return list;
+}
+
+function renderTabContent(){
+  if(state.activeTab==='lutteurs') return renderLutteursTab();
+  if(state.activeTab==='assurance') return renderAssuranceTab();
+  if(state.activeTab==='presences') return renderPresencesTab();
+  if(state.activeTab==='stats') return renderStatsTab();
+  if(state.activeTab==='reglages') return renderReglagesTab();
+  return '';
+}
+
+function renderLutteursTab(){
+  const list = getFilteredWrestlers();
+  const grouped = {};
+  CATS.forEach(c=>grouped[c.key]=[]);
+  list.forEach(w=>{
+    const c = categorize(w.dateNaissance, state.data.settings.refYear);
+    grouped[c.key].push(w);
+  });
+  let body;
+  if(state.data.wrestlers.length===0){
+    body = `<div class="empty-state"><div class="emoji">🥋</div>Aucun judoka enregistré.<br/>Appuyez sur + pour en ajouter un.</div>`;
+  } else if(list.length===0){
+    body = `<div class="empty-state"><div class="emoji">🔎</div>Aucun résultat pour cette recherche.</div>`;
+  } else {
+    body = CATS.map(c=>{
+      const arr = grouped[c.key];
+      if(arr.length===0) return '';
+      return `<div class="category-group">
+        <h3>${c.label} — ${arr.length}</h3>
+        <div class="wrestler-grid">
+          ${arr.map(w=>renderWrestlerCard(w)).join('')}
+        </div>
+      </div>`;
+    }).join('');
+  }
+  return `
+    <h2>Liste des judokas</h2>
+    <div class="desc">Cliquez sur un judoka pour voir sa fiche complète et ses cotisations.</div>
+    <div class="toolbar">
+      <input class="search-input" id="searchInput" placeholder="Rechercher un nom…" value="${escapeHtml(state.search)}"/>
+      <select class="filter" id="catFilterSel">
+        <option value="all" ${state.catFilter==='all'?'selected':''}>Toutes catégories</option>
+        ${CATS.map(c=>`<option value="${c.key}" ${state.catFilter===c.key?'selected':''}>${c.label}</option>`).join('')}
+      </select>
+      <button class="btn secondary small" id="btnPrintRoster">🖶 Imprimer</button>
+    </div>
+    ${body}
+  `;
+}
+
+function renderWrestlerCard(w){
+  const ins = w.assuranceReglee ? `<span class="tag ok">Assurance OK</span>` : `<span class="tag no">Assurance non réglée</span>`;
+  const dos = w.dossierComplet ? `<span class="tag ok">Dossier complet</span>` : `<span class="tag no">Dossier incomplet</span>`;
+  const photo = w.photo ? `<img class="photo" src="${w.photo}"/>` : `<div class="photo-ph">🥋</div>`;
+  return `<div class="wcard" data-id="${w.id}">
+    <div class="wcard-top">
+      ${photo}
+      <div>
+        <div class="wname">${escapeHtml(w.nom)} ${escapeHtml(w.prenom)}</div>
+        <div class="wmeta">${w.sexe==='F'?'Féminin':'Masculin'} · ${fmtDate(w.dateNaissance)}</div>
+      </div>
+    </div>
+    <div class="tags">${ins}${dos}</div>
+  </div>`;
+}
+
+/* ================= TAB: ASSURANCE ================= */
+function renderAssuranceTab(){
+  const insured = state.data.wrestlers.filter(w=>w.assuranceReglee);
+  let rows;
+  if(insured.length===0){
+    rows = `<div class="empty-state"><div class="emoji">🛡️</div>Aucun judoka assuré pour le moment.</div>`;
+  } else {
+    rows = `<table class="data-table"><thead><tr>
+      <th>Nom</th><th>Prénom</th><th>Tuteur / Père</th><th>Date de naissance</th><th>Lieu de naissance</th><th>Date paiement</th>
+    </tr></thead><tbody>
+      ${insured.map(w=>`<tr>
+        <td>${escapeHtml(w.nom)}</td><td>${escapeHtml(w.prenom)}</td><td>${escapeHtml(w.tuteurNom||'—')}</td>
+        <td>${fmtDate(w.dateNaissance)}</td><td>${escapeHtml(w.lieuNaissance||'—')}</td><td>${fmtDate(w.dateAssurance)}</td>
+      </tr>`).join('')}
+    </tbody></table>`;
+  }
+  return `
+    <h2>Judokas assurés</h2>
+    <div class="desc">Liste imprimable des judokas ayant réglé leur assurance.</div>
+    <div class="toolbar"><button class="btn secondary small" id="btnPrintInsurance">🖶 Imprimer la liste</button></div>
+    ${rows}
+  `;
+}
+
+/* ================= TAB: PRESENCES ================= */
+function renderPresencesTab(){
+  const date = state._attendDate || todayISO();
+  const session = state.data.sessions.find(s=>s.date===date);
+  const absents = session ? session.absents : [];
+  const list = state.data.wrestlers;
+  return `
+    <h2>Présences</h2>
+    <div class="desc">Sélectionnez une date de séance puis marquez les absents. Le reste est considéré présent.</div>
+    <div class="toolbar">
+      <input type="date" class="search-input" id="attendDate" value="${date}" style="max-width:200px;"/>
+    </div>
+    ${list.length===0? `<div class="empty-state"><div class="emoji">📋</div>Ajoutez d'abord des judokas.</div>` : `
+    <div class="attend-list">
+      ${list.map(w=>{
+        const isAbsent = absents.includes(w.id);
+        return `<div class="attend-row">
+          <div>${escapeHtml(w.nom)} ${escapeHtml(w.prenom)}</div>
+          <div class="switch ${isAbsent?'absent':''}" data-id="${w.id}"><div class="knob"></div></div>
+        </div>`;
+      }).join('')}
+    </div>
+    <div class="toolbar" style="margin-top:14px;">
+      <button class="btn small" id="btnSaveAttendance">Enregistrer la séance</button>
+    </div>
+    `}
+  `;
+}
+
+/* ================= TAB: STATS (admin only) ================= */
+function monthKeyFromDate(iso){
+  const m = parseInt(iso.slice(5,7),10);
+  const map = {9:'sept',10:'oct',11:'nov',12:'dec',1:'jan',2:'fev',3:'mars',4:'avr',5:'mai',6:'juin',7:'juil',8:'aout'};
+  return map[m];
+}
+function renderStatsTab(){
+  const w = state.data.wrestlers;
+  const amount = state.data.settings.cotisation || 0;
+  const nowKey = monthKeyFromDate(todayISO());
+  const now = new Date();
+  const revenusMois = w.reduce((sum,x)=> sum + (x.cotisations[nowKey] && x.cotisations[nowKey].paye ? amount : 0), 0);
+  const revenuAnnuel = w.reduce((sum,x)=>{
+    let t=0;
+    MONTHS.forEach(m=>{ if(x.cotisations[m.key] && x.cotisations[m.key].paye) t+=amount; });
+    return sum+t;
+  },0);
+  const dossiersComplets = w.filter(x=>x.dossierComplet).length;
+
+  // revenu du jour
+  const today = todayISO();
+  const todays = [];
+  w.forEach(x=>{
+    MONTHS.forEach(m=>{
+      const c = x.cotisations[m.key];
+      if(c && c.paye && c.date===today) todays.push({nom:x.nom, prenom:x.prenom, mois:m.fr});
+    });
+  });
+  const revenuJour = todays.length*amount;
+
+  // detail mensuel
+  const monthRows = MONTHS.map(m=>{
+    let paid=0;
+    w.forEach(x=>{ if(x.cotisations[m.key] && x.cotisations[m.key].paye) paid++; });
+    return `<tr><td>${m.fr}</td><td>${w.length}</td><td>${paid}</td><td>${paid*amount} DA</td></tr>`;
+  }).join('');
+
+  // par catégorie
+  const catCounts = CATS.map(c=>{
+    const n = w.filter(x=>categorize(x.dateNaissance, state.data.settings.refYear).key===c.key).length;
+    return `<tr><td>${c.label}</td><td>${n}</td></tr>`;
+  }).join('');
+
+  return `
+    <h2>Statistiques</h2>
+    <div class="desc">Vue réservée à l'administrateur.</div>
+    <div class="stat-grid">
+      <div class="stat-card"><div class="num">${w.length}</div><div class="lbl">Judokas inscrits</div></div>
+      <div class="stat-card"><div class="num">${dossiersComplets}</div><div class="lbl">Dossiers complets</div></div>
+      <div class="stat-card"><div class="num">${revenusMois} DA</div><div class="lbl">Revenu ce mois</div></div>
+      <div class="stat-card"><div class="num">${revenuAnnuel} DA</div><div class="lbl">Revenu annuel</div></div>
+    </div>
+    <h3 style="font-size:15px;margin-top:10px;">Revenu du jour — ${fmtDate(today)}</h3>
+    <div class="desc">${todays.length} paiement(s) enregistré(s) aujourd'hui — total ${revenuJour} DA</div>
+    ${todays.length? `<table class="data-table"><thead><tr><th>Nom</th><th>Prénom</th><th>Mois réglé</th></tr></thead><tbody>
+      ${todays.map(t=>`<tr><td>${escapeHtml(t.nom)}</td><td>${escapeHtml(t.prenom)}</td><td>${t.mois}</td></tr>`).join('')}
+    </tbody></table>` : ''}
+    <h3 style="font-size:15px;margin-top:22px;">Détail mensuel — saison en cours</h3>
+    <table class="data-table"><thead><tr><th>Mois</th><th>Judokas inscrits</th><th>Cotisations réglées</th><th>Revenu</th></tr></thead>
+    <tbody>${monthRows}</tbody></table>
+    <h3 style="font-size:15px;margin-top:22px;">Répartition par catégorie</h3>
+    <table class="data-table"><thead><tr><th>Catégorie</th><th>Nombre</th></tr></thead><tbody>${catCounts}</tbody></table>
+  `;
+}
+
+/* ================= TAB: REGLAGES ================= */
+function renderReglagesTab(){
+  const s = state.data.settings;
+  return `
+    <h2>Réglages</h2>
+    <div class="desc">Montant de la cotisation mensuelle et année de référence pour le calcul des catégories d'âge.</div>
+    <div class="field" style="max-width:280px;">
+      <label>Cotisation mensuelle (DA)</label>
+      <input type="text" id="setCotisation" value="${s.cotisation}"/>
+    </div>
+    <div class="field" style="max-width:280px;">
+      <label>Année de début de saison (ex. 2026 pour 2026/2027)</label>
+      <input type="text" id="setRefYear" value="${s.refYear}"/>
+    </div>
+    <button class="btn small" id="btnSaveSettings">Enregistrer</button>
+
+    <div class="section-label" style="margin-top:30px;">Nouvelle saison</div>
+    <div class="desc">
+      Archive tous les judokas et séances de la saison ${s.refYear}/${s.refYear+1}, puis prépare une saison
+      vide pour ${s.refYear+1}/${s.refYear+2}. Les saisons archivées restent conservées et consultables
+      (au moins 2 ans) — rien n'est supprimé.
+    </div>
+    <button class="btn secondary small" id="btnNewSeason">Archiver et démarrer la saison ${s.refYear+1}/${s.refYear+2}</button>
+
+    ${ (state.data.archives && state.data.archives.length) ? `
+    <div class="section-label" style="margin-top:30px;">Saisons archivées</div>
+    <table class="data-table"><thead><tr><th>Saison</th><th>Judokas</th><th>Archivée le</th><th></th></tr></thead>
+    <tbody>
+      ${state.data.archives.map((a,i)=>`<tr>
+        <td>${a.refYear}/${a.refYear+1}</td><td>${a.wrestlers.length}</td><td>${fmtDate(a.archivedAt)}</td>
+        <td><button class="btn ghost small" data-archive-idx="${i}">Imprimer la liste</button></td>
+      </tr>`).join('')}
+    </tbody></table>` : '' }
+  `;
+}
+
+/* ================= MODALS ================= */
+function renderModal(){
+  const m = state.modal;
+  if(m.type==='wrestler') return renderWrestlerModal();
+  if(m.type==='cotisations') return renderCotisationsModal();
+  return '';
+}
+
+function renderWrestlerModal(){
+  const editing = !!state.editingWrestler;
+  const w = state.editingWrestler || {
+    nom:'',prenom:'',dateNaissance:'',lieuNaissance:'',sexe:'M',
+    tuteurNom:'',tuteurTel:'',assuranceReglee:false,dateAssurance:'',
+    dossierComplet:false, manquants:{fiche:false,photos:false,certificat:false},
+    datePremiereSeance:'', photo:null
+  };
+  const photo = state.photoDraft || w.photo;
+  return `
+  <div class="overlay" id="wrestlerOverlay">
+    <div class="modal">
+      <div class="modal-head">
+        <h2>${editing?'Modifier le judoka':'Nouveau judoka'}</h2>
+        <button class="close-x" id="closeWrestlerModal">×</button>
+      </div>
+
+      <div class="photo-box" id="photoBox">${photo?`<img src="${photo}"/>`:'📷'}</div>
+      <label class="btn ghost small" style="display:inline-block;cursor:pointer;">
+        Choisir / scanner une photo
+        <input type="file" accept="image/*" capture="environment" id="photoInput" style="display:none;">
+      </label>
+
+      <div class="section-label">Identité</div>
+      <div class="field"><label>Nom *</label><input type="text" id="fNom" value="${escapeHtml(w.nom)}"/></div>
+      <div class="field"><label>Prénom *</label><input type="text" id="fPrenom" value="${escapeHtml(w.prenom)}"/></div>
+      <div class="field"><label>Date de naissance *</label><input type="date" id="fNaissance" value="${w.dateNaissance||''}"/></div>
+      <div class="field"><label>Lieu de naissance</label><input type="text" id="fLieu" value="${escapeHtml(w.lieuNaissance||'')}"/></div>
+      <div class="field">
+        <label>Sexe</label>
+        <div class="radio-row">
+          <label class="radio-opt"><input type="radio" name="fSexe" value="M" ${w.sexe==='M'?'checked':''}/> Masculin</label>
+          <label class="radio-opt"><input type="radio" name="fSexe" value="F" ${w.sexe==='F'?'checked':''}/> Féminin</label>
+        </div>
+      </div>
+      <div class="field"><label>Catégorie (calculée automatiquement)</label>
+        <input type="text" disabled value="${w.dateNaissance? categorize(w.dateNaissance,state.data.settings.refYear).label : '—'}"/>
+      </div>
+
+      <div class="section-label">Tuteur</div>
+      <div class="field"><label>Nom et prénom du tuteur</label><input type="text" id="fTuteurNom" value="${escapeHtml(w.tuteurNom||'')}"/></div>
+      <div class="field"><label>Téléphone du tuteur</label><input type="tel" id="fTuteurTel" value="${escapeHtml(w.tuteurTel||'')}"/></div>
+
+      <div class="section-label">Suivi administratif</div>
+      <div class="field"><label>Date de la première séance *</label><input type="date" id="fPremiereSeance" value="${w.datePremiereSeance||''}"/></div>
+
+      <div class="field">
+        <label>Assurance réglée ?</label>
+        <div class="radio-row">
+          <label class="radio-opt"><input type="radio" name="fAssurance" value="oui" ${w.assuranceReglee?'checked':''}/> Oui</label>
+          <label class="radio-opt"><input type="radio" name="fAssurance" value="non" ${!w.assuranceReglee?'checked':''}/> Non</label>
+        </div>
+      </div>
+      <div class="field" id="fDateAssuranceWrap" style="${w.assuranceReglee?'':'display:none;'}">
+        <label>Date de paiement de l'assurance</label>
+        <input type="date" id="fDateAssurance" value="${w.dateAssurance||''}"/>
+      </div>
+
+      <div class="field">
+        <label>Dossier complet ?</label>
+        <div class="radio-row">
+          <label class="radio-opt"><input type="radio" name="fDossier" value="oui" ${w.dossierComplet?'checked':''}/> Oui</label>
+          <label class="radio-opt"><input type="radio" name="fDossier" value="non" ${!w.dossierComplet?'checked':''}/> Non</label>
+        </div>
+      </div>
+      <div class="field" id="fManquantsWrap" style="${w.dossierComplet?'display:none;':''}">
+        <label>Élément(s) manquant(s)</label>
+        <div class="check-row"><input type="checkbox" id="mFiche" ${w.manquants&&w.manquants.fiche?'checked':''}/> Fiche d'inscription</div>
+        <div class="check-row"><input type="checkbox" id="mPhotos" ${w.manquants&&w.manquants.photos?'checked':''}/> Photos</div>
+        <div class="check-row"><input type="checkbox" id="mCertificat" ${w.manquants&&w.manquants.certificat?'checked':''}/> Certificat de naissance</div>
+      </div>
+
+      <div class="modal-actions">
+        <button class="btn" id="btnSaveWrestler">Enregistrer</button>
+        ${editing? `<button class="btn secondary" id="btnOpenCotisations">Cotisations</button>`:''}
+        ${editing? `<button class="btn danger" id="btnDeleteWrestler">Supprimer</button>`:''}
+      </div>
+    </div>
+  </div>`;
+}
+
+function renderCotisationsModal(){
+  const w = state.editingWrestler;
+  const refDay = w.datePremiereSeance ? parseInt(w.datePremiereSeance.slice(8,10),10) : 1;
+  const cells = MONTHS.map(m=>{
+    const c = w.cotisations[m.key] || {paye:false,date:null};
+    let cls='', status='À venir';
+    const y = m.idx>=9 ? state.data.settings.refYear : state.data.settings.refYear+1;
+    const dueDate = new Date(y, m.idx-1, refDay);
+    const now = new Date();
+    if(c.paye){ cls='paid'; status='Réglé'; }
+    else if(now > dueDate){ cls='overdue'; status='En retard'; }
+    return `<div class="month-cell ${cls}" data-month="${m.key}">
+      <div class="m-name">${m.fr}</div>
+      <div class="m-status">${status}</div>
+      ${c.paye && c.date ? `<div class="m-date">${fmtDate(c.date)}</div>`:''}
+    </div>`;
+  }).join('');
+  return `
+  <div class="overlay" id="cotisOverlay">
+    <div class="modal">
+      <div class="modal-head">
+        <h2>Cotisations — ${escapeHtml(w.nom)} ${escapeHtml(w.prenom)}</h2>
+        <button class="close-x" id="closeCotisModal">×</button>
+      </div>
+      <div class="desc">Cliquez sur un mois pour marquer la cotisation comme réglée / non réglée. Un mois passé non réglé apparaît en rouge.</div>
+      <div class="months-grid">${cells}</div>
+    </div>
+  </div>`;
+}
+
+/* ================= HANDLERS ================= */
+function attachHandlers(){
+  // login
+  const btnLogin = document.getElementById('btnLogin');
+  if(btnLogin) btnLogin.onclick = ()=> tryLogin(document.getElementById('loginCode').value);
+  const loginInput = document.getElementById('loginCode');
+  if(loginInput) loginInput.addEventListener('keydown', e=>{ if(e.key==='Enter') tryLogin(loginInput.value); });
+
+  const btnCoachOk = document.getElementById('btnCoachOk');
+  if(btnCoachOk) btnCoachOk.onclick = ()=> confirmCoachName(document.getElementById('coachNameInput').value);
+  const coachInput = document.getElementById('coachNameInput');
+  if(coachInput) coachInput.addEventListener('keydown', e=>{ if(e.key==='Enter') confirmCoachName(coachInput.value); });
+  const btnCoachBack = document.getElementById('btnCoachBack');
+  if(btnCoachBack) btnCoachBack.onclick = ()=>{ state.role=null; render(); };
+
+  const btnLogout = document.getElementById('btnLogout');
+  if(btnLogout) btnLogout.onclick = logout;
+
+  // tabs
+  document.querySelectorAll('.tab').forEach(el=>{
+    el.onclick = ()=>{ state.activeTab = el.dataset.tab; state.search=''; state.catFilter='all'; render(); };
+  });
+
+  // lutteurs tab
+  const searchInput = document.getElementById('searchInput');
+  if(searchInput){
+    searchInput.oninput = ()=>{ state.search=searchInput.value; render(); preserveFocus('searchInput'); };
+  }
+  const catSel = document.getElementById('catFilterSel');
+  if(catSel) catSel.onchange = ()=>{ state.catFilter=catSel.value; render(); };
+
+  const btnAdd = document.getElementById('btnAddWrestler');
+  if(btnAdd) btnAdd.onclick = ()=>{ state.editingWrestler=null; state.photoDraft=null; state.modal={type:'wrestler'}; render(); };
+
+  document.querySelectorAll('.wcard').forEach(el=>{
+    el.onclick = ()=>{
+      const w = state.data.wrestlers.find(x=>x.id===el.dataset.id);
+      state.editingWrestler = w; state.photoDraft=null; state.modal={type:'wrestler'}; render();
+    };
+  });
+
+  const btnPrintRoster = document.getElementById('btnPrintRoster');
+  if(btnPrintRoster) btnPrintRoster.onclick = ()=> printRoster();
+  const btnPrintInsurance = document.getElementById('btnPrintInsurance');
+  if(btnPrintInsurance) btnPrintInsurance.onclick = ()=> printInsurance();
+
+  // wrestler modal
+  const closeWM = document.getElementById('closeWrestlerModal');
+  if(closeWM) closeWM.onclick = ()=>{ state.modal=null; state.editingWrestler=null; state.photoDraft=null; render(); };
+
+  const photoInput = document.getElementById('photoInput');
+  if(photoInput) photoInput.onchange = (e)=>{
+    const file = e.target.files[0];
+    if(!file) return;
+    const reader = new FileReader();
+    reader.onload = ()=>{ state.photoDraft = reader.result; render(); };
+    reader.readAsDataURL(file);
+  };
+
+  document.querySelectorAll('input[name=fAssurance]').forEach(el=>{
+    el.onchange = ()=>{ document.getElementById('fDateAssuranceWrap').style.display = el.value==='oui'?'':'none'; };
+  });
+  document.querySelectorAll('input[name=fDossier]').forEach(el=>{
+    el.onchange = ()=>{ document.getElementById('fManquantsWrap').style.display = el.value==='oui'?'none':''; };
+  });
+
+  const btnSaveW = document.getElementById('btnSaveWrestler');
+  if(btnSaveW) btnSaveW.onclick = saveWrestlerFromForm;
+
+  const btnDelW = document.getElementById('btnDeleteWrestler');
+  if(btnDelW) btnDelW.onclick = ()=>{
+    if(confirm('Supprimer ce judoka ? Cette action est définitive.')){
+      state.data.wrestlers = state.data.wrestlers.filter(x=>x.id!==state.editingWrestler.id);
+      saveData();
+      state.modal=null; state.editingWrestler=null; render();
+      showToast('Judoka supprimé.');
+    }
+  };
+
+  const btnOpenCotis = document.getElementById('btnOpenCotisations');
+  if(btnOpenCotis) btnOpenCotis.onclick = ()=>{ state.modal={type:'cotisations'}; render(); };
+
+  const closeCotis = document.getElementById('closeCotisModal');
+  if(closeCotis) closeCotis.onclick = ()=>{ state.modal={type:'wrestler'}; render(); };
+
+  document.querySelectorAll('.month-cell').forEach(el=>{
+    el.onclick = ()=>{
+      const mk = el.dataset.month;
+      const w = state.data.wrestlers.find(x=>x.id===state.editingWrestler.id);
+      const c = w.cotisations[mk];
+      if(c.paye){ c.paye=false; c.date=null; }
+      else { c.paye=true; c.date=todayISO(); }
+      state.editingWrestler = w;
+      saveData();
+      render();
+    };
+  });
+
+  // assurance tab handled above
+
+  // presences tab
+  const attendDate = document.getElementById('attendDate');
+  if(attendDate) attendDate.onchange = ()=>{ state._attendDate = attendDate.value; render(); };
+  document.querySelectorAll('.switch').forEach(el=>{
+    el.onclick = ()=>{
+      const date = state._attendDate || todayISO();
+      let session = state.data.sessions.find(s=>s.date===date);
+      if(!session){ session = {date, absents:[]}; state.data.sessions.push(session); }
+      const id = el.dataset.id;
+      if(session.absents.includes(id)) session.absents = session.absents.filter(x=>x!==id);
+      else session.absents.push(id);
+      render();
+    };
+  });
+  const btnSaveAttend = document.getElementById('btnSaveAttendance');
+  if(btnSaveAttend) btnSaveAttend.onclick = ()=>{ saveData(); showToast('Séance enregistrée.'); };
+
+  // reglages
+  const btnSaveSettings = document.getElementById('btnSaveSettings');
+  if(btnSaveSettings) btnSaveSettings.onclick = ()=>{
+    const cot = parseInt(document.getElementById('setCotisation').value,10) || 0;
+    const ref = parseInt(document.getElementById('setRefYear').value,10) || state.data.settings.refYear;
+    state.data.settings.cotisation = cot;
+    state.data.settings.refYear = ref;
+    saveData();
+    showToast('Réglages enregistrés.');
+  };
+
+  const btnNewSeason = document.getElementById('btnNewSeason');
+  if(btnNewSeason) btnNewSeason.onclick = ()=>{
+    const cur = state.data.settings.refYear;
+    if(confirm('Archiver la saison '+cur+'/'+(cur+1)+' et démarrer une nouvelle saison vide '+(cur+1)+'/'+(cur+2)+' ?\nCette action est sans risque : rien n\'est supprimé, tout est archivé.')){
+      state.data.archives.unshift({
+        refYear: cur,
+        wrestlers: state.data.wrestlers,
+        sessions: state.data.sessions,
+        archivedAt: todayISO()
+      });
+      state.data.wrestlers = [];
+      state.data.sessions = [];
+      state.data.settings.refYear = cur + 1;
+      saveData();
+      render();
+      showToast('Nouvelle saison démarrée — ancienne saison archivée.');
+    }
+  };
+
+  document.querySelectorAll('[data-archive-idx]').forEach(el=>{
+    el.onclick = ()=> printArchiveRoster(parseInt(el.dataset.archiveIdx,10));
+  });
+}
+
+function preserveFocus(id){
+  const el = document.getElementById(id);
+  if(el){ el.focus(); const v=el.value; el.value=''; el.value=v; }
+}
+
+function saveWrestlerFromForm(){
+  const nom = document.getElementById('fNom').value.trim();
+  const prenom = document.getElementById('fPrenom').value.trim();
+  const dateNaissance = document.getElementById('fNaissance').value;
+  const datePremiereSeance = document.getElementById('fPremiereSeance').value;
+  if(!nom || !prenom || !dateNaissance || !datePremiereSeance){
+    alert('Merci de renseigner au minimum : Nom, Prénom, Date de naissance et Date de la première séance.');
+    return;
+  }
+  const sexe = document.querySelector('input[name=fSexe]:checked').value;
+  const assuranceReglee = document.querySelector('input[name=fAssurance]:checked').value==='oui';
+  const dossierComplet = document.querySelector('input[name=fDossier]:checked').value==='oui';
+  const lieuNaissance = document.getElementById('fLieu').value.trim();
+  const tuteurNom = document.getElementById('fTuteurNom').value.trim();
+  const tuteurTel = document.getElementById('fTuteurTel').value.trim();
+  const dateAssurance = assuranceReglee ? (document.getElementById('fDateAssurance').value || todayISO()) : null;
+  const manquants = {
+    fiche: document.getElementById('mFiche') ? document.getElementById('mFiche').checked : false,
+    photos: document.getElementById('mPhotos') ? document.getElementById('mPhotos').checked : false,
+    certificat: document.getElementById('mCertificat') ? document.getElementById('mCertificat').checked : false
+  };
+  const photo = state.photoDraft || (state.editingWrestler ? state.editingWrestler.photo : null);
+
+  if(state.editingWrestler){
+    const w = state.data.wrestlers.find(x=>x.id===state.editingWrestler.id);
+    Object.assign(w, {nom,prenom,dateNaissance,lieuNaissance,sexe,tuteurNom,tuteurTel,assuranceReglee,dateAssurance,dossierComplet,manquants,datePremiereSeance,photo});
+  } else {
+    state.data.wrestlers.push({
+      id: uid(), nom,prenom,dateNaissance,lieuNaissance,sexe,tuteurNom,tuteurTel,
+      assuranceReglee,dateAssurance,dossierComplet,manquants,datePremiereSeance,photo,
+      cotisations: emptyCotisations(), ajoutePar: state.coachName, createdAt: todayISO()
+    });
+  }
+  saveData();
+  state.modal=null; state.editingWrestler=null; state.photoDraft=null;
+  render();
+  showToast('Judoka enregistré.');
+}
+
+/* ================= PRINT ================= */
+function printRoster(){
+  const list = getFilteredWrestlers();
+  let html = `<h2>École Sportive Bougara — Liste des judokas</h2><table><thead><tr>
+    <th>Nom</th><th>Prénom</th><th>Naissance</th><th>Lieu</th><th>Sexe</th><th>Catégorie</th><th>Tuteur</th><th>Téléphone</th>
+  </tr></thead><tbody>`;
+  CATS.forEach(c=>{
+    const arr = list.filter(w=>categorize(w.dateNaissance,state.data.settings.refYear).key===c.key);
+    arr.forEach(w=>{
+      html += `<tr><td>${escapeHtml(w.nom)}</td><td>${escapeHtml(w.prenom)}</td><td>${fmtDate(w.dateNaissance)}</td>
+      <td>${escapeHtml(w.lieuNaissance||'')}</td><td>${w.sexe==='F'?'F':'M'}</td><td>${c.label}</td>
+      <td>${escapeHtml(w.tuteurNom||'')}</td><td>${escapeHtml(w.tuteurTel||'')}</td></tr>`;
+    });
+  });
+  html += `</tbody></table>`;
+  document.getElementById('printArea').innerHTML = html;
+  window.print();
+}
+function printInsurance(){
+  const insured = state.data.wrestlers.filter(w=>w.assuranceReglee);
+  let html = `<h2>École Sportive Bougara — Judokas assurés</h2><table><thead><tr>
+    <th>Nom</th><th>Prénom</th><th>Tuteur / Père</th><th>Naissance</th><th>Lieu</th><th>Date paiement</th>
+  </tr></thead><tbody>`;
+  insured.forEach(w=>{
+    html += `<tr><td>${escapeHtml(w.nom)}</td><td>${escapeHtml(w.prenom)}</td><td>${escapeHtml(w.tuteurNom||'')}</td>
+    <td>${fmtDate(w.dateNaissance)}</td><td>${escapeHtml(w.lieuNaissance||'')}</td><td>${fmtDate(w.dateAssurance)}</td></tr>`;
+  });
+  html += `</tbody></table>`;
+  document.getElementById('printArea').innerHTML = html;
+  window.print();
+}
+
+function printArchiveRoster(idx){
+  const a = state.data.archives[idx];
+  if(!a) return;
+  let html = `<h2>École Sportive Bougara — Saison ${a.refYear}/${a.refYear+1} (archivée)</h2><table><thead><tr>
+    <th>Nom</th><th>Prénom</th><th>Naissance</th><th>Lieu</th><th>Sexe</th><th>Catégorie</th><th>Tuteur</th><th>Téléphone</th>
+  </tr></thead><tbody>`;
+  CATS.forEach(c=>{
+    const arr = a.wrestlers.filter(w=>categorize(w.dateNaissance,a.refYear).key===c.key);
+    arr.forEach(w=>{
+      html += `<tr><td>${escapeHtml(w.nom)}</td><td>${escapeHtml(w.prenom)}</td><td>${fmtDate(w.dateNaissance)}</td>
+      <td>${escapeHtml(w.lieuNaissance||'')}</td><td>${w.sexe==='F'?'F':'M'}</td><td>${c.label}</td>
+      <td>${escapeHtml(w.tuteurNom||'')}</td><td>${escapeHtml(w.tuteurTel||'')}</td></tr>`;
+    });
+  });
+  html += `</tbody></table>`;
+  document.getElementById('printArea').innerHTML = html;
+  window.print();
+}
+
+/* ================= INIT ================= */
+loadData();
+</script>
+</body>
+</html>
