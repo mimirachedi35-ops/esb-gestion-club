@@ -191,10 +191,12 @@ select.filter{
 }
 .month-cell.paid{background:var(--green-bg);border-color:var(--green);}
 .month-cell.overdue{background:rgba(193,39,45,0.18);border-color:var(--red);}
+.month-cell.paused{background:rgba(184,134,44,0.18);border-color:var(--orange);}
 .month-cell .m-name{font-weight:600;font-size:14px;}
 .month-cell .m-status{font-size:11px;color:var(--muted);margin-top:3px;}
 .month-cell.paid .m-status{color:#7fd9a4;}
 .month-cell.overdue .m-status{color:#ff8b8f;}
+.month-cell.paused .m-status{color:#e0b862;}
 .month-cell .m-date{font-size:10px;color:var(--muted);margin-top:2px;}
 
 /* ---------- STATS ---------- */
@@ -230,6 +232,27 @@ table.data-table tr:hover td{background:rgba(255,255,255,0.02);}
   #printArea h2{color:#000;}
   #printArea table{width:100%;border-collapse:collapse;}
   #printArea th,#printArea td{border:1px solid #333;padding:6px 8px;font-size:12px;color:#000;text-align:left;}
+
+  .id-card{
+    position:relative; width:100mm; height:95mm; padding:0; margin:0; overflow:hidden;
+    border:1px solid #999; border-radius:4mm; font-family:'Inter',sans-serif; color:#111;
+    page-break-inside: avoid;
+  }
+  .id-card .card-bg{
+    position:absolute; inset:0; width:100%; height:100%; object-fit:contain; opacity:0.10; z-index:0;
+  }
+  .id-card .card-content{ position:relative; z-index:1; padding:4mm; text-align:center; }
+  .id-card .card-header{ font-weight:bold; font-size:11px; text-transform:uppercase; letter-spacing:0.05em; margin-bottom:2mm; }
+  .id-card .card-photo{ width:20mm; height:20mm; border-radius:50%; object-fit:cover; border:1px solid #999; margin-bottom:2mm; }
+  .id-card .card-photo-ph{ display:flex; align-items:center; justify-content:center; background:#eee; margin:0 auto 2mm; font-size:16px; }
+  .id-card .card-name{ font-weight:bold; font-size:13px; margin-bottom:1mm; }
+  .id-card .card-line{ font-size:9.5px; color:#333; margin-bottom:1mm; }
+  .id-card .card-months{ display:flex; flex-wrap:wrap; justify-content:center; gap:1mm; margin:2mm 0; }
+  .id-card .card-month{ font-size:7px; padding:1mm 1.4mm; border-radius:2px; border:1px solid #999; }
+  .id-card .card-m-paid{ background:#cdeed9; border-color:#2e7d4f; }
+  .id-card .card-m-pause{ background:#f4e3bd; border-color:#b8862c; }
+  .id-card .card-m-empty{ background:#f4f4f4; }
+  .id-card .card-signature{ margin-top:3mm; font-size:8.5px; color:#555; border-top:1px dashed #999; padding-top:2mm; }
 }
 .toast{
   position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:var(--panel);border:1px solid var(--red);
@@ -266,10 +289,12 @@ let state = {
   coachName: '',
   loginError: '',
   loading: true,
-  data: { wrestlers: [], sessions: [], archives: [], settings: { cotisation: 1500, refYear: 2026 } },
+  data: { wrestlers: [], sessions: [], archives: [], settings: { cotisation: 1500, refYear: 2026, numGroups: 4 } },
   activeTab: 'lutteurs',
   search: '',
   catFilter: 'all',
+  groupFilter: 'all',
+  cotisSearch: '',
   modal: null,          // {type:'wrestler'|'cotisations'|'attendance', payload}
   editingWrestler: null,
   photoDraft: null,
@@ -295,7 +320,7 @@ function categorize(birthDateISO, refYear){
 
 function emptyCotisations(){
   const o = {};
-  MONTHS.forEach(m => o[m.key] = { paye:false, date:null });
+  MONTHS.forEach(m => o[m.key] = { paye:false, date:null, pause:false });
   return o;
 }
 
@@ -305,7 +330,8 @@ async function loadData(){
     if(res.ok){
       const parsed = await res.json();
       if(parsed){
-        state.data = Object.assign({wrestlers:[],sessions:[],archives:[],settings:{cotisation:1500,refYear:2026}}, parsed);
+        state.data = Object.assign({wrestlers:[],sessions:[],archives:[],settings:{cotisation:1500,refYear:2026,numGroups:4}}, parsed);
+        if(!state.data.settings.numGroups) state.data.settings.numGroups = 4;
         if(!state.data.archives) state.data.archives = [];
       }
     }
@@ -415,6 +441,7 @@ function renderCoachNamePrompt(){
 function renderApp(){
   const tabs = [
     {key:'lutteurs', label:'Judokas'},
+    {key:'cotisations', label:'Cotisations'},
     {key:'assurance', label:'Assurance'},
     {key:'presences', label:'Présences'},
   ];
@@ -460,11 +487,22 @@ function getFilteredWrestlers(){
   if(state.catFilter!=='all'){
     list = list.filter(w => categorize(w.dateNaissance, state.data.settings.refYear).key === state.catFilter);
   }
+  if(state.groupFilter && state.groupFilter!=='all'){
+    list = list.filter(w => (w.groupe||'') === state.groupFilter);
+  }
   return list;
+}
+
+function getGroupOptions(){
+  const n = state.data.settings.numGroups || 4;
+  const arr = [];
+  for(let i=1;i<=n;i++) arr.push(String(i));
+  return arr;
 }
 
 function renderTabContent(){
   if(state.activeTab==='lutteurs') return renderLutteursTab();
+  if(state.activeTab==='cotisations') return renderCotisationsTab();
   if(state.activeTab==='assurance') return renderAssuranceTab();
   if(state.activeTab==='presences') return renderPresencesTab();
   if(state.activeTab==='stats') return renderStatsTab();
@@ -506,7 +544,12 @@ function renderLutteursTab(){
         <option value="all" ${state.catFilter==='all'?'selected':''}>Toutes catégories</option>
         ${CATS.map(c=>`<option value="${c.key}" ${state.catFilter===c.key?'selected':''}>${c.label}</option>`).join('')}
       </select>
+      <select class="filter" id="groupFilterSel">
+        <option value="all" ${(!state.groupFilter||state.groupFilter==='all')?'selected':''}>Tous les groupes</option>
+        ${getGroupOptions().map(g=>`<option value="${g}" ${state.groupFilter===g?'selected':''}>Groupe ${g}</option>`).join('')}
+      </select>
       <button class="btn secondary small" id="btnPrintRoster">🖶 Imprimer</button>
+      <button class="btn ghost small" id="btnPrintByGroup">🖶 Imprimer par groupe</button>
     </div>
     ${body}
   `;
@@ -516,6 +559,7 @@ function renderWrestlerCard(w){
   const ins = w.assuranceReglee ? `<span class="tag ok">Assurance OK</span>` : `<span class="tag no">Assurance non réglée</span>`;
   const dos = w.dossierComplet ? `<span class="tag ok">Dossier complet</span>` : `<span class="tag no">Dossier incomplet</span>`;
   const photo = w.photo ? `<img class="photo" src="${w.photo}"/>` : `<div class="photo-ph">🥋</div>`;
+  const groupe = w.groupe ? `<span class="tag ok" style="background:rgba(184,134,44,0.2);color:#e0b862;">Groupe ${escapeHtml(w.groupe)}</span>` : '';
   return `<div class="wcard" data-id="${w.id}">
     <div class="wcard-top">
       ${photo}
@@ -524,8 +568,63 @@ function renderWrestlerCard(w){
         <div class="wmeta">${w.sexe==='F'?'Féminin':'Masculin'} · ${fmtDate(w.dateNaissance)}</div>
       </div>
     </div>
-    <div class="tags">${ins}${dos}</div>
+    <div class="tags">${ins}${dos}${groupe}</div>
   </div>`;
+}
+
+/* ================= TAB: COTISATIONS (impayés + recherche) ================= */
+function renderCotisationsTab(){
+  const nowKey = monthKeyFromDate(todayISO());
+  const search = (state.cotisSearch||'').trim().toLowerCase();
+  let list = state.data.wrestlers;
+  let title, body;
+
+  if(search){
+    const results = list.filter(w => (w.nom+' '+w.prenom).toLowerCase().includes(search));
+    title = `Résultats pour « ${escapeHtml(state.cotisSearch)} »`;
+    if(results.length===0){
+      body = `<div class="empty-state"><div class="emoji">🔎</div>Aucun judoka trouvé.</div>`;
+    } else {
+      body = `<table class="data-table"><thead><tr><th>Nom</th><th>Prénom</th><th>Statut du mois en cours</th></tr></thead><tbody>
+        ${results.map(w=>{
+          const c = w.cotisations[nowKey] || {paye:false,pause:false};
+          let statut = c.pause ? `<span class="tag" style="background:rgba(184,134,44,0.2);color:#e0b862;">En pause</span>`
+                      : c.paye ? `<span class="tag ok">Payé le ${fmtDate(c.date)}</span>`
+                      : `<span class="tag no">Non payé</span>`;
+          return `<tr data-id="${w.id}" style="cursor:pointer;"><td>${escapeHtml(w.nom)}</td><td>${escapeHtml(w.prenom)}</td><td>${statut}</td></tr>`;
+        }).join('')}
+      </tbody></table>`;
+    }
+  } else {
+    const unpaid = list.filter(w=>{
+      const c = w.cotisations[nowKey] || {paye:false,pause:false};
+      return !c.paye && !c.pause;
+    });
+    title = `Judokas n'ayant pas réglé le mois en cours (${MONTHS.find(m=>m.key===nowKey).fr})`;
+    if(list.length===0){
+      body = `<div class="empty-state"><div class="emoji">💳</div>Ajoutez d'abord des judokas.</div>`;
+    } else if(unpaid.length===0){
+      body = `<div class="empty-state"><div class="emoji">✅</div>Tous les judokas sont à jour ce mois-ci.</div>`;
+    } else {
+      body = `<table class="data-table"><thead><tr><th>Nom</th><th>Prénom</th><th>Catégorie</th><th>Téléphone tuteur</th></tr></thead><tbody>
+        ${unpaid.map(w=>`<tr data-id="${w.id}" style="cursor:pointer;">
+          <td>${escapeHtml(w.nom)}</td><td>${escapeHtml(w.prenom)}</td>
+          <td>${categorize(w.dateNaissance, state.data.settings.refYear).label}</td>
+          <td>${escapeHtml(w.tuteurTel||'—')}</td>
+        </tr>`).join('')}
+      </tbody></table>`;
+    }
+  }
+
+  return `
+    <h2>Cotisations</h2>
+    <div class="desc">Recherchez un judoka pour voir s'il a payé, ou consultez la liste des impayés du mois en cours.</div>
+    <div class="toolbar">
+      <input class="search-input" id="cotisSearchInput" placeholder="Rechercher un judoka…" value="${escapeHtml(state.cotisSearch||'')}"/>
+    </div>
+    <h3 style="font-size:15px;margin-bottom:10px;">${title}</h3>
+    ${body}
+  `;
 }
 
 /* ================= TAB: ASSURANCE ================= */
@@ -536,11 +635,11 @@ function renderAssuranceTab(){
     rows = `<div class="empty-state"><div class="emoji">🛡️</div>Aucun judoka assuré pour le moment.</div>`;
   } else {
     rows = `<table class="data-table"><thead><tr>
-      <th>Nom</th><th>Prénom</th><th>Tuteur / Père</th><th>Date de naissance</th><th>Lieu de naissance</th><th>Date paiement</th>
+      <th>Nom</th><th>Prénom</th><th>Date de naissance</th><th>Lieu de naissance</th><th>Nom du père</th>
     </tr></thead><tbody>
       ${insured.map(w=>`<tr>
-        <td>${escapeHtml(w.nom)}</td><td>${escapeHtml(w.prenom)}</td><td>${escapeHtml(w.tuteurNom||'—')}</td>
-        <td>${fmtDate(w.dateNaissance)}</td><td>${escapeHtml(w.lieuNaissance||'—')}</td><td>${fmtDate(w.dateAssurance)}</td>
+        <td>${escapeHtml(w.nom)}</td><td>${escapeHtml(w.prenom)}</td>
+        <td>${fmtDate(w.dateNaissance)}</td><td>${escapeHtml(w.lieuNaissance||'—')}</td><td>${escapeHtml(w.tuteurNom||'—')}</td>
       </tr>`).join('')}
     </tbody></table>`;
   }
@@ -660,6 +759,10 @@ function renderReglagesTab(){
       <label>Année de début de saison (ex. 2026 pour 2026/2027)</label>
       <input type="text" id="setRefYear" value="${s.refYear}"/>
     </div>
+    <div class="field" style="max-width:280px;">
+      <label>Nombre de groupes (fawj)</label>
+      <input type="text" id="setNumGroups" value="${s.numGroups||4}"/>
+    </div>
     <button class="btn small" id="btnSaveSettings">Enregistrer</button>
 
     <div class="section-label" style="margin-top:30px;">Nouvelle saison</div>
@@ -728,6 +831,12 @@ function renderWrestlerModal(){
       <div class="field"><label>Catégorie (calculée automatiquement)</label>
         <input type="text" disabled value="${w.dateNaissance? categorize(w.dateNaissance,state.data.settings.refYear).label : '—'}"/>
       </div>
+      <div class="field"><label>Groupe</label>
+        <select id="fGroupe">
+          <option value="">— Aucun —</option>
+          ${getGroupOptions().map(g=>`<option value="${g}" ${w.groupe===g?'selected':''}>Groupe ${g}</option>`).join('')}
+        </select>
+      </div>
 
       <div class="section-label">Tuteur</div>
       <div class="field"><label>Nom et prénom du tuteur</label><input type="text" id="fTuteurNom" value="${escapeHtml(w.tuteurNom||'')}"/></div>
@@ -765,6 +874,7 @@ function renderWrestlerModal(){
       <div class="modal-actions">
         <button class="btn" id="btnSaveWrestler">Enregistrer</button>
         ${editing? `<button class="btn secondary" id="btnOpenCotisations">Cotisations</button>`:''}
+        ${editing? `<button class="btn ghost" id="btnPrintCard">🖶 Imprimer la carte</button>`:''}
         ${editing? `<button class="btn danger" id="btnDeleteWrestler">Supprimer</button>`:''}
       </div>
     </div>
@@ -775,12 +885,13 @@ function renderCotisationsModal(){
   const w = state.editingWrestler;
   const refDay = w.datePremiereSeance ? parseInt(w.datePremiereSeance.slice(8,10),10) : 1;
   const cells = MONTHS.map(m=>{
-    const c = w.cotisations[m.key] || {paye:false,date:null};
+    const c = w.cotisations[m.key] || {paye:false,date:null,pause:false};
     let cls='', status='À venir';
     const y = m.idx>=9 ? state.data.settings.refYear : state.data.settings.refYear+1;
     const dueDate = new Date(y, m.idx-1, refDay);
     const now = new Date();
     if(c.paye){ cls='paid'; status='Réglé'; }
+    else if(c.pause){ cls='paused'; status='En pause'; }
     else if(now > dueDate){ cls='overdue'; status='En retard'; }
     return `<div class="month-cell ${cls}" data-month="${m.key}">
       <div class="m-name">${m.fr}</div>
@@ -795,7 +906,7 @@ function renderCotisationsModal(){
         <h2>Cotisations — ${escapeHtml(w.nom)} ${escapeHtml(w.prenom)}</h2>
         <button class="close-x" id="closeCotisModal">×</button>
       </div>
-      <div class="desc">Cliquez sur un mois pour marquer la cotisation comme réglée / non réglée. Un mois passé non réglé apparaît en rouge.</div>
+      <div class="desc">Cliquez sur un mois pour faire défiler son statut : non payé → payé → en pause (arrêt temporaire du judoka, ne compte pas comme un retard) → non payé. Un mois passé non réglé apparaît en rouge.</div>
       <div class="months-grid">${cells}</div>
     </div>
   </div>`;
@@ -831,6 +942,8 @@ function attachHandlers(){
   }
   const catSel = document.getElementById('catFilterSel');
   if(catSel) catSel.onchange = ()=>{ state.catFilter=catSel.value; render(); };
+  const groupSel = document.getElementById('groupFilterSel');
+  if(groupSel) groupSel.onchange = ()=>{ state.groupFilter=groupSel.value; render(); };
 
   const btnAdd = document.getElementById('btnAddWrestler');
   if(btnAdd) btnAdd.onclick = ()=>{ state.editingWrestler=null; state.photoDraft=null; state.modal={type:'wrestler'}; render(); };
@@ -844,8 +957,22 @@ function attachHandlers(){
 
   const btnPrintRoster = document.getElementById('btnPrintRoster');
   if(btnPrintRoster) btnPrintRoster.onclick = ()=> printRoster();
+  const btnPrintByGroup = document.getElementById('btnPrintByGroup');
+  if(btnPrintByGroup) btnPrintByGroup.onclick = ()=> printByGroup();
   const btnPrintInsurance = document.getElementById('btnPrintInsurance');
   if(btnPrintInsurance) btnPrintInsurance.onclick = ()=> printInsurance();
+
+  // cotisations tab (impayés + recherche)
+  const cotisSearchInput = document.getElementById('cotisSearchInput');
+  if(cotisSearchInput){
+    cotisSearchInput.oninput = ()=>{ state.cotisSearch = cotisSearchInput.value; render(); preserveFocus('cotisSearchInput'); };
+  }
+  document.querySelectorAll('table.data-table tr[data-id]').forEach(el=>{
+    el.onclick = ()=>{
+      const w = state.data.wrestlers.find(x=>x.id===el.dataset.id);
+      if(w){ state.editingWrestler = w; state.photoDraft=null; state.modal={type:'wrestler'}; render(); }
+    };
+  });
 
   // wrestler modal
   const closeWM = document.getElementById('closeWrestlerModal');
@@ -883,6 +1010,9 @@ function attachHandlers(){
   const btnOpenCotis = document.getElementById('btnOpenCotisations');
   if(btnOpenCotis) btnOpenCotis.onclick = ()=>{ state.modal={type:'cotisations'}; render(); };
 
+  const btnPrintCard = document.getElementById('btnPrintCard');
+  if(btnPrintCard) btnPrintCard.onclick = ()=> printCard(state.editingWrestler);
+
   const closeCotis = document.getElementById('closeCotisModal');
   if(closeCotis) closeCotis.onclick = ()=>{ state.modal={type:'wrestler'}; render(); };
 
@@ -891,8 +1021,10 @@ function attachHandlers(){
       const mk = el.dataset.month;
       const w = state.data.wrestlers.find(x=>x.id===state.editingWrestler.id);
       const c = w.cotisations[mk];
-      if(c.paye){ c.paye=false; c.date=null; }
-      else { c.paye=true; c.date=todayISO(); }
+      // cycle: non payé -> payé -> en pause -> non payé
+      if(!c.paye && !c.pause){ c.paye=true; c.pause=false; c.date=todayISO(); }
+      else if(c.paye){ c.paye=false; c.pause=true; c.date=null; }
+      else { c.paye=false; c.pause=false; c.date=null; }
       state.editingWrestler = w;
       saveData();
       render();
@@ -923,8 +1055,10 @@ function attachHandlers(){
   if(btnSaveSettings) btnSaveSettings.onclick = ()=>{
     const cot = parseInt(document.getElementById('setCotisation').value,10) || 0;
     const ref = parseInt(document.getElementById('setRefYear').value,10) || state.data.settings.refYear;
+    const numGroups = parseInt(document.getElementById('setNumGroups').value,10) || 4;
     state.data.settings.cotisation = cot;
     state.data.settings.refYear = ref;
+    state.data.settings.numGroups = numGroups;
     saveData();
     showToast('Réglages enregistrés.');
   };
@@ -980,14 +1114,16 @@ function saveWrestlerFromForm(){
     certificat: document.getElementById('mCertificat') ? document.getElementById('mCertificat').checked : false
   };
   const photo = state.photoDraft || (state.editingWrestler ? state.editingWrestler.photo : null);
+  const groupeEl = document.getElementById('fGroupe');
+  const groupe = groupeEl ? groupeEl.value : '';
 
   if(state.editingWrestler){
     const w = state.data.wrestlers.find(x=>x.id===state.editingWrestler.id);
-    Object.assign(w, {nom,prenom,dateNaissance,lieuNaissance,sexe,tuteurNom,tuteurTel,assuranceReglee,dateAssurance,dossierComplet,manquants,datePremiereSeance,photo});
+    Object.assign(w, {nom,prenom,dateNaissance,lieuNaissance,sexe,tuteurNom,tuteurTel,assuranceReglee,dateAssurance,dossierComplet,manquants,datePremiereSeance,photo,groupe});
   } else {
     state.data.wrestlers.push({
       id: uid(), nom,prenom,dateNaissance,lieuNaissance,sexe,tuteurNom,tuteurTel,
-      assuranceReglee,dateAssurance,dossierComplet,manquants,datePremiereSeance,photo,
+      assuranceReglee,dateAssurance,dossierComplet,manquants,datePremiereSeance,photo,groupe,
       cotisations: emptyCotisations(), ajoutePar: state.coachName, createdAt: todayISO()
     });
   }
@@ -1015,6 +1151,59 @@ function printRoster(){
   document.getElementById('printArea').innerHTML = html;
   window.print();
 }
+function printByGroup(){
+  const list = getFilteredWrestlers();
+  const groups = getGroupOptions();
+  let html = `<h2>École Sportive Bougara — Judokas par groupe</h2>`;
+  groups.forEach(g=>{
+    const arr = list.filter(w=>(w.groupe||'')===g);
+    if(arr.length===0) return;
+    html += `<h3 style="margin-top:18px;">Groupe ${g} — ${arr.length}</h3>
+    <table><thead><tr><th>Nom</th><th>Prénom</th><th>Catégorie</th><th>Naissance</th></tr></thead><tbody>`;
+    arr.forEach(w=>{
+      html += `<tr><td>${escapeHtml(w.nom)}</td><td>${escapeHtml(w.prenom)}</td>
+      <td>${categorize(w.dateNaissance,state.data.settings.refYear).label}</td><td>${fmtDate(w.dateNaissance)}</td></tr>`;
+    });
+    html += `</tbody></table>`;
+  });
+  const sansGroupe = list.filter(w=>!w.groupe);
+  if(sansGroupe.length){
+    html += `<h3 style="margin-top:18px;">Sans groupe — ${sansGroupe.length}</h3>
+    <table><thead><tr><th>Nom</th><th>Prénom</th><th>Catégorie</th></tr></thead><tbody>`;
+    sansGroupe.forEach(w=>{
+      html += `<tr><td>${escapeHtml(w.nom)}</td><td>${escapeHtml(w.prenom)}</td><td>${categorize(w.dateNaissance,state.data.settings.refYear).label}</td></tr>`;
+    });
+    html += `</tbody></table>`;
+  }
+  document.getElementById('printArea').innerHTML = html;
+  window.print();
+}
+function printCard(w){
+  if(!w) return;
+  const cat = categorize(w.dateNaissance, state.data.settings.refYear).label;
+  const photoHtml = w.photo ? `<img src="${w.photo}" class="card-photo"/>` : `<div class="card-photo card-photo-ph">🥋</div>`;
+  const monthsHtml = MONTHS.map(m=>{
+    const c = w.cotisations[m.key] || {paye:false,pause:false};
+    const cls = c.paye ? 'card-m-paid' : (c.pause ? 'card-m-pause' : 'card-m-empty');
+    return `<div class="card-month ${cls}">${m.fr.slice(0,3)}</div>`;
+  }).join('');
+  const html = `
+  <div class="id-card">
+    <img class="card-bg" src="${LOGO_SRC}"/>
+    <div class="card-content">
+      <div class="card-header">École Sportive Bougara</div>
+      ${photoHtml}
+      <div class="card-name">${escapeHtml(w.nom)} ${escapeHtml(w.prenom)}</div>
+      <div class="card-line">Né(e) le ${fmtDate(w.dateNaissance)} à ${escapeHtml(w.lieuNaissance||'—')}</div>
+      <div class="card-line">${w.sexe==='F'?'Féminin':'Masculin'} — ${cat}</div>
+      <div class="card-months">${monthsHtml}</div>
+      <div class="card-signature">Signature du président</div>
+    </div>
+  </div>`;
+  document.getElementById('printArea').innerHTML = html;
+  window.print();
+}
+
 function printInsurance(){
   const insured = state.data.wrestlers.filter(w=>w.assuranceReglee);
   let html = `<h2>École Sportive Bougara — Judokas assurés</h2><table><thead><tr>
