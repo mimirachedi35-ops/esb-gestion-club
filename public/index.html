@@ -8,6 +8,7 @@
 <link rel="apple-touch-icon" href="/icons/icon-192.png">
 <meta name="theme-color" content="#c1272d">
 <title>E.S.Bougara — Gestion du Club</title>
+<script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
 <style>
 :root{
   --bg:#0b0b0d;
@@ -138,6 +139,7 @@ select.filter{
 }
 .wcard:hover{border-color:var(--red);}
 .wcard-top{display:flex;gap:10px;align-items:center;}
+.wcard-select{width:20px;height:20px;flex-shrink:0;accent-color:var(--red);cursor:pointer;}
 .wcard img.photo, .wcard .photo-ph{
   width:48px;height:48px;border-radius:50%;object-fit:cover;background:var(--panel-2);
   display:flex;align-items:center;justify-content:center;font-size:18px;color:var(--muted);flex-shrink:0;
@@ -253,6 +255,52 @@ table.data-table tr:hover td{background:rgba(255,255,255,0.02);}
   .id-card .card-m-pause{ background:#f4e3bd; border-color:#b8862c; }
   .id-card .card-m-empty{ background:#f4f4f4; }
   .id-card .card-signature{ margin-top:3mm; font-size:8.5px; color:#555; border-top:1px dashed #999; padding-top:2mm; }
+
+  /* ---- planche de 10 cartes par page A4 ---- */
+  .card-sheet{
+    display:grid; grid-template-columns:repeat(2,1fr); grid-template-rows:repeat(5,1fr);
+    gap:3mm; width:190mm; height:277mm; margin:0 auto;
+  }
+  .card-sheet + .card-sheet{ page-break-before:always; }
+  .mini-card{
+    position:relative; width:100%; height:100%; overflow:hidden;
+    border:1px solid #333; border-radius:2mm; font-family:'Inter',sans-serif; color:#111;
+    display:flex; flex-direction:column; page-break-inside:avoid; background:#fff;
+  }
+  /* ---- recto : identité + photo (design "Club Sportif Amateur") ---- */
+  .mini-card .mc-head{
+    background:#111; color:#fff; padding:1.5mm 3mm; position:relative; z-index:2;
+    border-bottom:1mm solid #c1272d;
+  }
+  .mini-card .mc-head-row{ display:flex; align-items:center; gap:2mm; }
+  .mini-card .mc-head img{ width:8mm; height:8mm; object-fit:contain; flex-shrink:0; }
+  .mini-card .mc-head-titles{ text-align:center; flex:1; }
+  .mini-card .mc-head-sub{ font-size:6px; letter-spacing:0.12em; text-transform:uppercase; color:#ccc; }
+  .mini-card .mc-head-name{ font-size:10.5px; font-weight:bold; letter-spacing:0.03em; }
+  .mini-card .mc-body{ flex:1; display:flex; gap:2.5mm; padding:2mm 3mm; direction:rtl; }
+  .mini-card .mc-photo{ width:17mm; height:20mm; object-fit:cover; border:1px solid #999; flex-shrink:0; }
+  .mini-card .mc-photo-ph{ display:flex; align-items:center; justify-content:center; background:#eee; font-size:11px; flex-shrink:0; color:#999; }
+  .mini-card .mc-fields{ flex:1; min-width:0; display:flex; flex-direction:column; justify-content:center; gap:1mm; }
+  .mini-card .mc-fields div{ font-size:7.3px; color:#111; line-height:1.3; }
+  .mini-card .mc-fields b{ font-weight:700; }
+  .mini-card .mc-qr{ position:absolute; bottom:1.5mm; left:1.5mm; width:11mm; height:11mm; z-index:2; background:#fff; padding:0.5mm; }
+
+  /* ---- verso : suivi des cotisations par mois ---- */
+  .mini-card-back .mc-back-head{
+    display:flex; align-items:center; justify-content:space-between; background:#111; color:#fff;
+    padding:1.3mm 3mm; font-size:7px; font-weight:bold; border-bottom:1mm solid #c1272d;
+  }
+  .mini-card-back .mc-months{ flex:1; display:flex; padding:1mm 2mm; gap:1.5mm; }
+  .mini-card-back .mc-mcol{ flex:1; display:flex; flex-direction:column; }
+  .mini-card-back .mc-mrow{
+    display:flex; justify-content:space-between; align-items:center; font-size:6.6px; color:#111;
+    padding:0.8mm 1mm; border-bottom:1px solid #ddd; direction:rtl;
+  }
+  .mini-card-back .mc-mrow:last-child{ border-bottom:none; }
+  .mini-card-back .mc-mstatus{ font-size:6px; width:8mm; text-align:center; border-radius:1mm; }
+  .mini-card-back .mc-mstatus.paid{ background:#cdeed9; color:#1f6b3f; }
+  .mini-card-back .mc-mstatus.pause{ background:#f4e3bd; color:#8a651c; }
+  .mini-card-back .mc-mstatus.empty{ background:#f4f4f4; color:#aaa; }
 }
 .toast{
   position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:var(--panel);border:1px solid var(--red);
@@ -269,19 +317,19 @@ const LOGO_SRC = "data:image/png;base64,__LOGO_BASE64__";
 const CODE_ADMIN = "omar1208";
 const CODE_COACH = "esb2026";
 const MONTHS = [
-  {key:'sept',fr:'Septembre',idx:9},{key:'oct',fr:'Octobre',idx:10},{key:'nov',fr:'Novembre',idx:11},
-  {key:'dec',fr:'Décembre',idx:12},{key:'jan',fr:'Janvier',idx:1},{key:'fev',fr:'Février',idx:2},
-  {key:'mars',fr:'Mars',idx:3},{key:'avr',fr:'Avril',idx:4},{key:'mai',fr:'Mai',idx:5},
-  {key:'juin',fr:'Juin',idx:6},{key:'juil',fr:'Juillet',idx:7},{key:'aout',fr:'Août',idx:8}
+  {key:'sept',fr:'Septembre',ar:'سبتمبر',idx:9},{key:'oct',fr:'Octobre',ar:'أكتوبر',idx:10},{key:'nov',fr:'Novembre',ar:'نوفمبر',idx:11},
+  {key:'dec',fr:'Décembre',ar:'ديسمبر',idx:12},{key:'jan',fr:'Janvier',ar:'جانفي',idx:1},{key:'fev',fr:'Février',ar:'فيفري',idx:2},
+  {key:'mars',fr:'Mars',ar:'مارس',idx:3},{key:'avr',fr:'Avril',ar:'أفريل',idx:4},{key:'mai',fr:'Mai',ar:'ماي',idx:5},
+  {key:'juin',fr:'Juin',ar:'جوان',idx:6},{key:'juil',fr:'Juillet',ar:'جويلية',idx:7},{key:'aout',fr:'Août',ar:'أوت',idx:8}
 ];
 const CATS = [
   {key:'baby',   label:'Baby Judo (Éveil)'},
-  {key:'poussins',label:'Poussins (Katakit)'},
-  {key:'benjamins',label:'Benjamins (Baraem)'},
-  {key:'minimes',label:'Minimes (Asghar)'},
-  {key:'cadets', label:'Cadets (Achbal)'},
-  {key:'juniors',label:'Juniors (Aouasit)'},
-  {key:'seniors',label:'Seniors (Akabir)'}
+  {key:'poussins',label:'Poussins'},
+  {key:'benjamins',label:'Benjamins'},
+  {key:'minimes',label:'Minimes'},
+  {key:'cadets', label:'Cadets'},
+  {key:'juniors',label:'Juniors'},
+  {key:'seniors',label:'Seniors'}
 ];
 
 let state = {
@@ -298,6 +346,8 @@ let state = {
   modal: null,          // {type:'wrestler'|'cotisations'|'attendance', payload}
   editingWrestler: null,
   photoDraft: null,
+  selectMode: false,
+  selectedIds: [],
   toast: null
 };
 
@@ -389,9 +439,58 @@ function logout(){
   render();
 }
 
+/* ================= FICHE PUBLIQUE (scan QR carte) ================= */
+function renderPublicFiche(){
+  const pf = state.publicFiche;
+  if(pf.loading){
+    return `<div class="login-wrap"><div style="color:var(--muted)">Chargement…</div></div>`;
+  }
+  if(pf.error || !pf.data){
+    return `<div class="login-wrap"><div class="login-card">
+      <img class="logo" src="${LOGO_SRC}"/>
+      <div class="club-name">École Sportive Bougara</div>
+      <div style="color:var(--muted);margin-top:14px;font-size:13px;">Aucune fiche trouvée pour ce code.</div>
+    </div></div>`;
+  }
+  const w = pf.data;
+  const photoHtml = w.photo ? `<img src="${w.photo}" style="width:90px;height:90px;border-radius:50%;object-fit:cover;"/>` : '';
+  return `<div class="login-wrap"><div class="login-card">
+    <img class="logo" src="${LOGO_SRC}"/>
+    <div class="club-name">École Sportive Bougara</div>
+    <div style="margin:14px 0;">${photoHtml}</div>
+    <div style="font-size:18px;font-weight:700;color:var(--white);">${escapeHtml(w.nom||'')} ${escapeHtml(w.prenom||'')}</div>
+    <div style="color:var(--muted);font-size:13px;margin-top:4px;">${w.sexe==='F'?'Féminin':'Masculin'} — ${escapeHtml(w.categorie||'')}</div>
+    <div style="color:var(--muted);font-size:12px;margin-top:16px;line-height:1.5;">
+      Cette carte appartient à un judoka de l'École Sportive Bougara.<br/>Merci de la retourner au club.
+    </div>
+  </div></div>`;
+}
+
+async function initApp(){
+  const params = new URLSearchParams(location.search);
+  const ficheId = params.get('fiche');
+  if(ficheId){
+    state.publicFiche = { loading:true, data:null, error:null };
+    render();
+    try{
+      const res = await fetch('/api/wrestler/' + encodeURIComponent(ficheId));
+      if(res.ok){ state.publicFiche.data = await res.json(); }
+      else { state.publicFiche.error = true; }
+    }catch(e){ state.publicFiche.error = true; }
+    state.publicFiche.loading = false;
+    render();
+    return;
+  }
+  loadData();
+}
+
 /* ================= RENDER ROOT ================= */
 function render(){
   const root = document.getElementById('root');
+  if(state.publicFiche){
+    root.innerHTML = renderPublicFiche();
+    return;
+  }
   if(state.loading){
     root.innerHTML = `<div class="login-wrap"><div style="color:var(--muted)">Chargement…</div></div>`;
     return;
@@ -550,6 +649,8 @@ function renderLutteursTab(){
       </select>
       <button class="btn secondary small" id="btnPrintRoster">🖶 Imprimer</button>
       <button class="btn ghost small" id="btnPrintByGroup">🖶 Imprimer par groupe</button>
+      <button class="btn ${state.selectMode?'':'ghost'} small" id="btnToggleSelect">${state.selectMode?'✕ Annuler la sélection':'☑ Sélectionner des cartes'}</button>
+      ${state.selectMode ? `<button class="btn small" id="btnPrintSelectedCards" ${state.selectedIds.length===0?'disabled':''}>🖶 Imprimer les cartes (${state.selectedIds.length})</button>` : ''}
     </div>
     ${body}
   `;
@@ -560,8 +661,11 @@ function renderWrestlerCard(w){
   const dos = w.dossierComplet ? `<span class="tag ok">Dossier complet</span>` : `<span class="tag no">Dossier incomplet</span>`;
   const photo = w.photo ? `<img class="photo" src="${w.photo}"/>` : `<div class="photo-ph">🥋</div>`;
   const groupe = w.groupe ? `<span class="tag ok" style="background:rgba(184,134,44,0.2);color:#e0b862;">Groupe ${escapeHtml(w.groupe)}</span>` : '';
+  const checked = state.selectedIds.includes(w.id);
+  const checkbox = state.selectMode ? `<input type="checkbox" class="wcard-select" data-select-id="${w.id}" ${checked?'checked':''}/>` : '';
   return `<div class="wcard" data-id="${w.id}">
     <div class="wcard-top">
+      ${checkbox}
       ${photo}
       <div>
         <div class="wname">${escapeHtml(w.nom)} ${escapeHtml(w.prenom)}</div>
@@ -798,7 +902,7 @@ function renderWrestlerModal(){
   const w = state.editingWrestler || {
     nom:'',prenom:'',dateNaissance:'',lieuNaissance:'',sexe:'M',
     tuteurNom:'',tuteurTel:'',assuranceReglee:false,dateAssurance:'',
-    dossierComplet:false, manquants:{fiche:false,photos:false,certificat:false},
+    dossierComplet:false, manquants:{fiche:false,photos:false,certificat:false,cin:false,groupeSanguin:false},
     datePremiereSeance:'', photo:null
   };
   const photo = state.photoDraft || w.photo;
@@ -869,6 +973,8 @@ function renderWrestlerModal(){
         <div class="check-row"><input type="checkbox" id="mFiche" ${w.manquants&&w.manquants.fiche?'checked':''}/> Fiche d'inscription</div>
         <div class="check-row"><input type="checkbox" id="mPhotos" ${w.manquants&&w.manquants.photos?'checked':''}/> Photos</div>
         <div class="check-row"><input type="checkbox" id="mCertificat" ${w.manquants&&w.manquants.certificat?'checked':''}/> Certificat de naissance</div>
+        <div class="check-row"><input type="checkbox" id="mCin" ${w.manquants&&w.manquants.cin?'checked':''}/> Copie carte d'identité nationale</div>
+        <div class="check-row"><input type="checkbox" id="mGroupeSanguin" ${w.manquants&&w.manquants.groupeSanguin?'checked':''}/> Copie carte de groupe sanguin</div>
       </div>
 
       <div class="modal-actions">
@@ -949,11 +1055,39 @@ function attachHandlers(){
   if(btnAdd) btnAdd.onclick = ()=>{ state.editingWrestler=null; state.photoDraft=null; state.modal={type:'wrestler'}; render(); };
 
   document.querySelectorAll('.wcard').forEach(el=>{
-    el.onclick = ()=>{
+    el.onclick = (ev)=>{
+      if(ev.target && ev.target.classList.contains('wcard-select')) return;
+      if(state.selectMode){
+        const id = el.dataset.id;
+        const i = state.selectedIds.indexOf(id);
+        if(i>=0) state.selectedIds.splice(i,1); else state.selectedIds.push(id);
+        render();
+        return;
+      }
       const w = state.data.wrestlers.find(x=>x.id===el.dataset.id);
       state.editingWrestler = w; state.photoDraft=null; state.modal={type:'wrestler'}; render();
     };
   });
+
+  document.querySelectorAll('.wcard-select').forEach(el=>{
+    el.onclick = (ev)=>{ ev.stopPropagation(); };
+    el.onchange = ()=>{
+      const id = el.dataset.selectId;
+      const i = state.selectedIds.indexOf(id);
+      if(el.checked && i<0) state.selectedIds.push(id);
+      if(!el.checked && i>=0) state.selectedIds.splice(i,1);
+      render();
+    };
+  });
+
+  const btnToggleSelect = document.getElementById('btnToggleSelect');
+  if(btnToggleSelect) btnToggleSelect.onclick = ()=>{
+    state.selectMode = !state.selectMode;
+    if(!state.selectMode) state.selectedIds = [];
+    render();
+  };
+  const btnPrintSelectedCards = document.getElementById('btnPrintSelectedCards');
+  if(btnPrintSelectedCards) btnPrintSelectedCards.onclick = ()=> printSelectedCards();
 
   const btnPrintRoster = document.getElementById('btnPrintRoster');
   if(btnPrintRoster) btnPrintRoster.onclick = ()=> printRoster();
@@ -1111,7 +1245,9 @@ function saveWrestlerFromForm(){
   const manquants = {
     fiche: document.getElementById('mFiche') ? document.getElementById('mFiche').checked : false,
     photos: document.getElementById('mPhotos') ? document.getElementById('mPhotos').checked : false,
-    certificat: document.getElementById('mCertificat') ? document.getElementById('mCertificat').checked : false
+    certificat: document.getElementById('mCertificat') ? document.getElementById('mCertificat').checked : false,
+    cin: document.getElementById('mCin') ? document.getElementById('mCin').checked : false,
+    groupeSanguin: document.getElementById('mGroupeSanguin') ? document.getElementById('mGroupeSanguin').checked : false
   };
   const photo = state.photoDraft || (state.editingWrestler ? state.editingWrestler.photo : null);
   const groupeEl = document.getElementById('fGroupe');
@@ -1204,14 +1340,91 @@ function printCard(w){
   window.print();
 }
 
+async function printSelectedCards(){
+  const list = state.data.wrestlers.filter(w=>state.selectedIds.includes(w.id));
+  if(list.length===0) return;
+  const chunks = [];
+  for(let i=0;i<list.length;i+=10) chunks.push(list.slice(i,i+10));
+  const refYear = state.data.settings.refYear;
+
+  // Génère le QR code de chaque judoka (lien vers sa fiche publique)
+  const qrMap = {};
+  await Promise.all(list.map(async w=>{
+    const url = `${location.origin}/?fiche=${w.id}`;
+    try{ qrMap[w.id] = await QRCode.toDataURL(url, {margin:1, width:200}); }
+    catch(e){ qrMap[w.id] = ''; }
+  }));
+
+  // Ordre des mois pour le verso : saison sportive, de septembre à août, sur 2 colonnes de 6
+  const leftMonths = MONTHS.slice(0,6);   // sept -> fev
+  const rightMonths = MONTHS.slice(6,12); // mars -> aout
+
+  const frontPages = chunks.map(chunk=>{
+    const cards = chunk.map(w=>{
+      const photoHtml = w.photo ? `<img src="${w.photo}" class="mc-photo"/>` : `<div class="mc-photo mc-photo-ph">🥋</div>`;
+      const qrHtml = qrMap[w.id] ? `<img src="${qrMap[w.id]}" class="mc-qr"/>` : '';
+      return `<div class="mini-card">
+        <div class="mc-head">
+          <div class="mc-head-row">
+            <img src="${LOGO_SRC}"/>
+            <div class="mc-head-titles">
+              <div class="mc-head-sub">Club Sportif Amateur</div>
+              <div class="mc-head-name">E.S. BOUGARA</div>
+            </div>
+          </div>
+        </div>
+        <div class="mc-body">
+          ${photoHtml}
+          <div class="mc-fields">
+            <div>• <b>الاسم :</b> ${escapeHtml(w.prenom)}</div>
+            <div>• <b>اللقب :</b> ${escapeHtml(w.nom)}</div>
+            <div>• <b>تاريخ ومكان الازدياد :</b> ${fmtDate(w.dateNaissance)} ${w.lieuNaissance? '- '+escapeHtml(w.lieuNaissance):''}</div>
+            <div>• <b>الموسم :</b> ${refYear}/${refYear+1}</div>
+            <div>• <b>اختصاص :</b> جيدو</div>
+          </div>
+        </div>
+        ${qrHtml}
+      </div>`;
+    }).join('');
+    const filler = Array(10-chunk.length).fill('<div class="mini-card" style="visibility:hidden;"></div>').join('');
+    return `<div class="card-sheet">${cards}${filler}</div>`;
+  }).join('');
+
+  const monthRow = (w,m)=>{
+    const c = w.cotisations[m.key] || {paye:false,pause:false};
+    const cls = c.paye ? 'paid' : (c.pause ? 'pause' : 'empty');
+    const label = c.paye ? '✓' : (c.pause ? '⏸' : '—');
+    return `<div class="mc-mrow"><span>${m.ar}</span><span class="mc-mstatus ${cls}">${label}</span></div>`;
+  };
+
+  const backPages = chunks.map(chunk=>{
+    const cards = chunk.map(w=>{
+      return `<div class="mini-card mini-card-back">
+        <div class="mc-back-head">
+          <span>📘 E.S.BOUGARA</span><span>📞 07.80.72.33.09</span>
+        </div>
+        <div class="mc-months">
+          <div class="mc-mcol">${leftMonths.map(m=>monthRow(w,m)).join('')}</div>
+          <div class="mc-mcol">${rightMonths.map(m=>monthRow(w,m)).join('')}</div>
+        </div>
+      </div>`;
+    }).join('');
+    const filler = Array(10-chunk.length).fill('<div class="mini-card mini-card-back" style="visibility:hidden;"></div>').join('');
+    return `<div class="card-sheet">${cards}${filler}</div>`;
+  }).join('');
+
+  document.getElementById('printArea').innerHTML = frontPages + backPages;
+  window.print();
+}
+
 function printInsurance(){
   const insured = state.data.wrestlers.filter(w=>w.assuranceReglee);
   let html = `<h2>École Sportive Bougara — Judokas assurés</h2><table><thead><tr>
-    <th>Nom</th><th>Prénom</th><th>Tuteur / Père</th><th>Naissance</th><th>Lieu</th><th>Date paiement</th>
+    <th>N°</th><th>Nom</th><th>Prénom</th><th>Naissance</th><th>Lieu</th>
   </tr></thead><tbody>`;
-  insured.forEach(w=>{
-    html += `<tr><td>${escapeHtml(w.nom)}</td><td>${escapeHtml(w.prenom)}</td><td>${escapeHtml(w.tuteurNom||'')}</td>
-    <td>${fmtDate(w.dateNaissance)}</td><td>${escapeHtml(w.lieuNaissance||'')}</td><td>${fmtDate(w.dateAssurance)}</td></tr>`;
+  insured.forEach((w,i)=>{
+    html += `<tr><td>${i+1}</td><td>${escapeHtml(w.nom)}</td><td>${escapeHtml(w.prenom)}</td>
+    <td>${fmtDate(w.dateNaissance)}</td><td>${escapeHtml(w.lieuNaissance||'')}</td></tr>`;
   });
   html += `</tbody></table>`;
   document.getElementById('printArea').innerHTML = html;
@@ -1238,7 +1451,7 @@ function printArchiveRoster(idx){
 }
 
 /* ================= INIT ================= */
-loadData();
+initApp();
 </script>
 </body>
 </html>
