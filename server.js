@@ -43,6 +43,43 @@ app.get('/api/data', async (req, res) => {
   }
 });
 
+// Fiche publique d'un judoka (accessible sans connexion, via le QR code de sa carte).
+// Ne renvoie QUE des informations non sensibles : nom, prénom, photo, sexe, catégorie.
+// Ne renvoie JAMAIS : téléphone du tuteur, copies de documents, groupe sanguin, statut assurance...
+app.get('/api/wrestler/:id', async (req, res) => {
+  try {
+    const doc = await ClubData.findOne({ key: 'club-data' });
+    const wrestlers = (doc && doc.value && doc.value.wrestlers) || [];
+    const w = wrestlers.find(x => x.id === req.params.id);
+    if (!w) return res.status(404).json({ error: 'Introuvable' });
+    const refYear = (doc.value.settings && doc.value.settings.refYear) || new Date().getFullYear();
+    res.json({
+      nom: w.nom,
+      prenom: w.prenom,
+      sexe: w.sexe,
+      photo: w.photo || null,
+      categorie: categorizeLabel(w.dateNaissance, refYear)
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Erreur de lecture.' });
+  }
+});
+
+// Reproduit exactement la logique de catégorisation par âge utilisée côté client (voir categorize() dans index.html).
+function categorizeLabel(dateNaissanceISO, refYear) {
+  if (!dateNaissanceISO) return 'Baby Judo (Éveil)';
+  const y = parseInt(dateNaissanceISO.slice(0, 4), 10);
+  const diff = refYear - y;
+  if (diff >= 20) return 'Seniors';
+  if (diff >= 17) return 'Juniors';
+  if (diff >= 14) return 'Cadets';
+  if (diff >= 12) return 'Minimes';
+  if (diff >= 10) return 'Benjamins';
+  if (diff >= 8) return 'Poussins';
+  return 'Baby Judo (Éveil)';
+}
+
 // Enregistrer les données du club (remplace l'ensemble du document)
 app.post('/api/data', async (req, res) => {
   try {
