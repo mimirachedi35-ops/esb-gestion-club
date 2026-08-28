@@ -227,6 +227,7 @@ table.data-table tr:hover td{background:rgba(255,255,255,0.02);}
 /* print */
 #printArea{display:none;}
 @media print{
+  *{ -webkit-print-color-adjust:exact !important; print-color-adjust:exact !important; color-adjust:exact !important; }
   body *{visibility:hidden;}
   #printArea, #printArea *{visibility:visible;}
   #printArea{display:block;position:absolute;top:0;left:0;width:100%;padding:20px;color:#000;background:#fff;}
@@ -272,7 +273,7 @@ table.data-table tr:hover td{background:rgba(255,255,255,0.02);}
   }
   /* ---- recto : identité + photo (design "Club Sportif Amateur") ---- */
   .mini-card .mc-head{
-    background:#111; color:#fff; padding:1.5mm 2mm; position:relative; z-index:2;
+    background:#111 !important; color:#fff !important; padding:1.5mm 2mm; position:relative; z-index:2;
     border-bottom:0.9mm solid #c1272d;
     display:flex; align-items:center; gap:1.5mm;
   }
@@ -297,10 +298,11 @@ table.data-table tr:hover td{background:rgba(255,255,255,0.02);}
   .mini-card-back table.mc-table td.mc-val{ width:9%; }
   .mini-card-back table.mc-table td.mc-mon{ width:41%; text-align:center; }
   .mini-card-back .mc-back-foot{
-    display:flex; align-items:center; justify-content:space-between; background:#111; color:#fff;
-    padding:1.6mm 2.2mm; font-size:9.5px; font-weight:800; border-top:0.9mm solid #c1272d;
+    display:flex; align-items:center; justify-content:space-between; background:#111 !important; color:#fff !important;
+    padding:1.8mm 2.2mm; font-size:11px; font-weight:800; border-top:0.9mm solid #c1272d;
     position:relative; z-index:1;
   }
+  .mini-card-back .mc-back-foot span{ color:#fff !important; }
 }
 .toast{
   position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:var(--panel);border:1px solid var(--red);
