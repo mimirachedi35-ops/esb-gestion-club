@@ -8,7 +8,6 @@
 <link rel="apple-touch-icon" href="/icons/icon-192.png">
 <meta name="theme-color" content="#c1272d">
 <title>E.S.Bougara — Gestion du Club</title>
-<script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
 <style>
 :root{
   --bg:#0b0b0d;
@@ -308,7 +307,7 @@ table.data-table tr:hover td{background:rgba(255,255,255,0.02);}
 <div id="printArea"></div>
 
 <script>
-const LOGO_SRC = "data:image/png;base64,__LOGO_BASE64__";
+const LOGO_SRC = "/icons/icon-512.png";
 const CODE_ADMIN = "omar1208";
 const CODE_COACH = "esb2026";
 const MONTHS = [
@@ -1311,44 +1310,26 @@ function printByGroup(){
 }
 function printCard(w){
   if(!w) return;
-  const cat = categorize(w.dateNaissance, state.data.settings.refYear).label;
-  const photoHtml = w.photo ? `<img src="${w.photo}" class="card-photo"/>` : `<div class="card-photo card-photo-ph">🥋</div>`;
-  const monthsHtml = MONTHS.map(m=>{
-    const c = w.cotisations[m.key] || {paye:false,pause:false};
-    const cls = c.paye ? 'card-m-paid' : (c.pause ? 'card-m-pause' : 'card-m-empty');
-    return `<div class="card-month ${cls}">${m.fr.slice(0,3)}</div>`;
-  }).join('');
-  const html = `
-  <div class="id-card">
-    <img class="card-bg" src="${LOGO_SRC}"/>
-    <div class="card-content">
-      <div class="card-header">École Sportive Bougara</div>
-      ${photoHtml}
-      <div class="card-name">${escapeHtml(w.nom)} ${escapeHtml(w.prenom)}</div>
-      <div class="card-line">Né(e) le ${fmtDate(w.dateNaissance)} à ${escapeHtml(w.lieuNaissance||'—')}</div>
-      <div class="card-line">${w.sexe==='F'?'Féminin':'Masculin'} — ${cat}</div>
-      <div class="card-months">${monthsHtml}</div>
-      <div class="card-signature">Signature du président</div>
-    </div>
-  </div>`;
-  document.getElementById('printArea').innerHTML = html;
-  window.print();
+  buildAndPrintCards([w]);
 }
 
-async function printSelectedCards(){
+function printSelectedCards(){
   const list = state.data.wrestlers.filter(w=>state.selectedIds.includes(w.id));
   if(list.length===0) return;
+  buildAndPrintCards(list);
+}
+
+function buildAndPrintCards(list){
   const chunks = [];
   for(let i=0;i<list.length;i+=10) chunks.push(list.slice(i,i+10));
   const refYear = state.data.settings.refYear;
 
-  // Génère le QR code de chaque judoka (lien vers sa fiche publique)
-  const qrMap = {};
-  await Promise.all(list.map(async w=>{
-    const url = `${location.origin}/?fiche=${w.id}`;
-    try{ qrMap[w.id] = await QRCode.toDataURL(url, {margin:1, width:200}); }
-    catch(e){ qrMap[w.id] = ''; }
-  }));
+  // QR code : image générée à la volée par un service externe (aucune librairie à charger,
+  // fonctionne tant que l'appareil a accès à internet — ce qui est déjà nécessaire pour l'application).
+  const qrUrl = (w)=>{
+    const target = `${location.origin}/?fiche=${w.id}`;
+    return `https://api.qrserver.com/v1/create-qr-code/?size=180x180&margin=2&data=${encodeURIComponent(target)}`;
+  };
 
   // Ordre des mois pour le verso : saison sportive, de septembre à août, sur 2 colonnes de 6
   const leftMonths = MONTHS.slice(0,6);   // sept -> fev
@@ -1357,7 +1338,7 @@ async function printSelectedCards(){
   const frontPages = chunks.map(chunk=>{
     const cards = chunk.map(w=>{
       const photoHtml = w.photo ? `<img src="${w.photo}" class="mc-photo"/>` : `<div class="mc-photo mc-photo-ph">🥋</div>`;
-      const qrHtml = qrMap[w.id] ? `<img src="${qrMap[w.id]}" class="mc-qr"/>` : '';
+      const qrHtml = `<img src="${qrUrl(w)}" class="mc-qr" crossorigin="anonymous"/>`;
       return `<div class="mini-card">
         <div class="mc-head">
           <img class="mc-logo" src="${LOGO_SRC}"/>
@@ -1406,7 +1387,20 @@ async function printSelectedCards(){
   }).join('');
 
   document.getElementById('printArea').innerHTML = frontPages + backPages;
-  window.print();
+
+  // On attend que toutes les images (photos + QR codes) soient chargées avant d'imprimer,
+  // sinon certaines peuvent apparaître vides sur le papier.
+  const imgs = Array.from(document.querySelectorAll('#printArea img'));
+  let remaining = imgs.length;
+  if(remaining===0){ window.print(); return; }
+  let done = false;
+  const finish = ()=>{ if(done) return; done=true; window.print(); };
+  imgs.forEach(img=>{
+    if(img.complete){ remaining--; if(remaining<=0) finish(); return; }
+    img.addEventListener('load', ()=>{ remaining--; if(remaining<=0) finish(); });
+    img.addEventListener('error', ()=>{ remaining--; if(remaining<=0) finish(); });
+  });
+  setTimeout(finish, 4000); // filet de sécurité si une image tarde à charger
 }
 
 function printInsurance(){
