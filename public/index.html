@@ -266,6 +266,10 @@ table.data-table tr:hover td{background:rgba(255,255,255,0.02);}
     border:0.75px solid #000; border-radius:0; font-family:'Inter',sans-serif; color:#000;
     display:flex; flex-direction:column; page-break-inside:avoid; background:#fff;
   }
+  .mini-card .mc-bg{
+    position:absolute; top:50%; left:50%; transform:translate(-50%,-50%);
+    width:75%; opacity:0.14; z-index:0; pointer-events:none;
+  }
   /* ---- recto : identité + photo (design "Club Sportif Amateur") ---- */
   .mini-card .mc-head{
     background:#111; color:#fff; padding:1mm 2mm; position:relative; z-index:2;
@@ -274,26 +278,28 @@ table.data-table tr:hover td{background:rgba(255,255,255,0.02);}
   }
   .mini-card .mc-logo{ width:9mm; height:9mm; object-fit:contain; flex-shrink:0; }
   .mini-card .mc-head-titles{ text-align:center; flex:1; }
-  .mini-card .mc-head-sub{ font-size:6px; letter-spacing:0.05em; font-weight:700; }
-  .mini-card .mc-head-name{ font-size:10px; font-weight:800; letter-spacing:0.02em; }
-  .mini-card .mc-body{ flex:1; display:flex; gap:2mm; padding:1.5mm 2.5mm; direction:rtl; align-items:flex-start; }
+  .mini-card .mc-head-sub{ font-size:7.2px; letter-spacing:0.06em; font-weight:700; color:#fff; }
+  .mini-card .mc-head-name{ font-size:14px; font-weight:900; letter-spacing:0.01em; color:#fff; }
+  .mini-card .mc-head-name .accent{ color:#e2372f; }
+  .mini-card .mc-body{ flex:1; display:flex; gap:2mm; padding:1.5mm 2.5mm; align-items:flex-start; position:relative; z-index:1; }
   .mini-card .mc-photo-col{ display:flex; flex-direction:column; align-items:center; gap:1mm; flex-shrink:0; }
-  .mini-card .mc-photo{ width:16mm; height:18mm; object-fit:cover; border:0.75px solid #000; }
-  .mini-card .mc-photo-ph{ display:flex; align-items:center; justify-content:center; background:#fff; font-size:10px; color:#999; }
+  .mini-card .mc-photo{ width:16mm; height:18mm; object-fit:cover; border:0.75px solid #000; background:#fff; }
+  .mini-card .mc-photo-ph{ background:#fff; }
   .mini-card .mc-qr{ width:9mm; height:9mm; }
-  .mini-card .mc-fields{ flex:1; min-width:0; display:flex; flex-direction:column; justify-content:space-around; height:100%; padding-top:1mm; }
+  .mini-card .mc-fields{ flex:1; min-width:0; display:flex; flex-direction:column; justify-content:space-around; height:100%; padding-top:1mm; direction:rtl; }
   .mini-card .mc-fields div{ font-size:7.2px; color:#000; border-bottom:0.5px dotted #666; padding-bottom:0.6mm; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
   .mini-card .mc-fields b{ font-weight:700; }
 
   /* ---- verso : suivi des cotisations par mois ---- */
   .mini-card-back{ justify-content:space-between; }
-  .mini-card-back table.mc-table{ border-collapse:collapse; width:100%; direction:rtl; table-layout:fixed; }
-  .mini-card-back table.mc-table td{ border:0.5px solid #000; font-size:6.4px; text-align:center; padding:0.9mm 0.5mm; color:#000; }
+  .mini-card-back table.mc-table{ border-collapse:collapse; width:100%; direction:rtl; table-layout:fixed; position:relative; z-index:1; }
+  .mini-card-back table.mc-table td{ border:0.5px solid #000; font-size:6.4px; text-align:center; padding:0.9mm 0.5mm; color:#000; background:rgba(255,255,255,0.75); }
   .mini-card-back table.mc-table td.mc-val{ width:9%; }
   .mini-card-back table.mc-table td.mc-mon{ width:41%; text-align:center; }
   .mini-card-back .mc-back-foot{
     display:flex; align-items:center; justify-content:space-between; background:#111; color:#fff;
-    padding:1.1mm 2mm; font-size:6.6px; font-weight:700; border-bottom:0.9mm solid #c1272d;
+    padding:1.1mm 2mm; font-size:6.6px; font-weight:700; border-top:0.9mm solid #c1272d;
+    position:relative; z-index:1;
   }
 }
 .toast{
@@ -1337,14 +1343,15 @@ function buildAndPrintCards(list){
 
   const frontPages = chunks.map(chunk=>{
     const cards = chunk.map(w=>{
-      const photoHtml = w.photo ? `<img src="${w.photo}" class="mc-photo"/>` : `<div class="mc-photo mc-photo-ph">🥋</div>`;
+      const photoHtml = w.photo ? `<img src="${w.photo}" class="mc-photo"/>` : `<div class="mc-photo mc-photo-ph"></div>`;
       const qrHtml = `<img src="${qrUrl(w)}" class="mc-qr" crossorigin="anonymous"/>`;
       return `<div class="mini-card">
+        <img class="mc-bg" src="${LOGO_SRC}"/>
         <div class="mc-head">
           <img class="mc-logo" src="${LOGO_SRC}"/>
           <div class="mc-head-titles">
             <div class="mc-head-sub">CLUB SPORTIF AMATEUR</div>
-            <div class="mc-head-name">E.S. BOUGARA</div>
+            <div class="mc-head-name">E.S. <span class="accent">BOUGARA</span></div>
           </div>
         </div>
         <div class="mc-body">
@@ -1376,6 +1383,7 @@ function buildAndPrintCards(list){
     const cards = chunk.map(w=>{
       const rows = leftMonths.map((m,i)=>`<tr>${monthCells(w,m)}${monthCells(w,rightMonths[i])}</tr>`).join('');
       return `<div class="mini-card mini-card-back">
+        <img class="mc-bg" src="${LOGO_SRC}"/>
         <table class="mc-table">${rows}</table>
         <div class="mc-back-foot">
           <span>📘 E.S.BOUGARA</span><span>📞 07.80.72.33.09</span>
