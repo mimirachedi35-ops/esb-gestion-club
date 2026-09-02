@@ -208,6 +208,8 @@ select.filter{
 table.data-table{width:100%;border-collapse:collapse;font-size:13px;}
 table.data-table th{text-align:left;color:var(--red);text-transform:uppercase;font-size:11px;letter-spacing:0.04em;padding:9px 8px;border-bottom:1px solid var(--line);}
 table.data-table td{padding:9px 8px;border-bottom:1px solid var(--line);color:var(--white);}
+table.data-table tr.ins-row{cursor:pointer;}
+table.data-table tr.ins-row:hover{background:rgba(255,255,255,0.04);}
 table.data-table tr:hover td{background:rgba(255,255,255,0.02);}
 
 /* ---------- ATTENDANCE ---------- */
@@ -543,6 +545,7 @@ function renderApp(){
   const tabs = [
     {key:'lutteurs', label:'Judokas'},
     {key:'cotisations', label:'Cotisations'},
+    {key:'rappels', label:'Rappels'},
     {key:'assurance', label:'Assurance'},
     {key:'presences', label:'Présences'},
   ];
@@ -604,6 +607,7 @@ function getGroupOptions(){
 function renderTabContent(){
   if(state.activeTab==='lutteurs') return renderLutteursTab();
   if(state.activeTab==='cotisations') return renderCotisationsTab();
+  if(state.activeTab==='rappels') return renderRappelsTab();
   if(state.activeTab==='assurance') return renderAssuranceTab();
   if(state.activeTab==='presences') return renderPresencesTab();
   if(state.activeTab==='stats') return renderStatsTab();
@@ -736,24 +740,43 @@ function renderCotisationsTab(){
 /* ================= TAB: ASSURANCE ================= */
 function renderAssuranceTab(){
   const insured = state.data.wrestlers.filter(w=>w.assuranceReglee);
-  let rows;
-  if(insured.length===0){
-    rows = `<div class="empty-state"><div class="emoji">🛡️</div>Aucun judoka assuré pour le moment.</div>`;
-  } else {
-    rows = `<table class="data-table"><thead><tr>
-      <th>Nom</th><th>Prénom</th><th>Date de naissance</th><th>Lieu de naissance</th><th>Nom du père</th>
-    </tr></thead><tbody>
-      ${insured.map(w=>`<tr>
-        <td>${escapeHtml(w.nom)}</td><td>${escapeHtml(w.prenom)}</td>
-        <td>${fmtDate(w.dateNaissance)}</td><td>${escapeHtml(w.lieuNaissance||'—')}</td><td>${escapeHtml(w.tuteurNom||'—')}</td>
-      </tr>`).join('')}
-    </tbody></table>`;
-  }
+  const notInsured = state.data.wrestlers.filter(w=>!w.assuranceReglee);
+
+  const insuredRows = insured.length===0
+    ? `<div class="empty-state"><div class="emoji">🛡️</div>Aucun judoka assuré pour le moment.</div>`
+    : `<table class="data-table"><thead><tr>
+        <th>Nom</th><th>Prénom</th><th>Naissance</th><th>Date de paiement</th><th>Statut</th>
+      </tr></thead><tbody>
+        ${insured.map(w=>`<tr class="ins-row" data-toggle-ins="${w.id}">
+          <td>${escapeHtml(w.nom)}</td><td>${escapeHtml(w.prenom)}</td>
+          <td>${fmtDate(w.dateNaissance)}</td><td>${fmtDate(w.dateAssurance)}</td>
+          <td><span class="tag ok">Payée</span></td>
+        </tr>`).join('')}
+      </tbody></table>`;
+
+  const notInsuredRows = notInsured.length===0
+    ? `<div class="empty-state"><div class="emoji">✅</div>Tous les judokas ont réglé leur assurance.</div>`
+    : `<table class="data-table"><thead><tr>
+        <th>Nom</th><th>Prénom</th><th>Naissance</th><th>Statut</th>
+      </tr></thead><tbody>
+        ${notInsured.map(w=>`<tr class="ins-row" data-toggle-ins="${w.id}">
+          <td>${escapeHtml(w.nom)}</td><td>${escapeHtml(w.prenom)}</td>
+          <td>${fmtDate(w.dateNaissance)}</td>
+          <td><span class="tag no">Non payée</span></td>
+        </tr>`).join('')}
+      </tbody></table>`;
+
   return `
-    <h2>Judokas assurés</h2>
-    <div class="desc">Liste imprimable des judokas ayant réglé leur assurance.</div>
-    <div class="toolbar"><button class="btn secondary small" id="btnPrintInsurance">🖶 Imprimer la liste</button></div>
-    ${rows}
+    <h2>Assurance</h2>
+    <div class="desc">Cliquez sur un judoka dans une liste pour basculer son statut (payée ⇄ non payée) en un clic.</div>
+
+    <h3 style="margin-top:18px;color:var(--white);">✅ Assurés (${insured.length})</h3>
+    <div class="toolbar"><button class="btn secondary small" id="btnPrintInsurance">🖶 Imprimer la liste des assurés</button></div>
+    ${insuredRows}
+
+    <h3 style="margin-top:26px;color:var(--white);">⛔ Non assurés (${notInsured.length})</h3>
+    <div class="toolbar"><button class="btn secondary small" id="btnPrintNonInsurance">🖶 Imprimer la liste des non-assurés</button></div>
+    ${notInsuredRows}
   `;
 }
 
@@ -783,6 +806,79 @@ function renderPresencesTab(){
       <button class="btn small" id="btnSaveAttendance">Enregistrer la séance</button>
     </div>
     `}
+  `;
+}
+
+/* ================= TAB: RAPPELS (WhatsApp) ================= */
+function waLink(tel, text){
+  if(!tel) return null;
+  let n = String(tel).replace(/[^0-9+]/g,'');
+  if(n.startsWith('+')) n = n.slice(1);
+  if(n.startsWith('00')) n = n.slice(2);
+  if(n.startsWith('0')) n = '213' + n.slice(1);
+  if(!n.startsWith('213')) n = '213' + n;
+  if(n.length < 10) return null;
+  return 'https://wa.me/' + n + '?text=' + encodeURIComponent(text);
+}
+
+function computeReminders(){
+  const nowISO = todayISO();
+  const now = new Date();
+  const y = now.getFullYear(), m = now.getMonth()+1;
+  const daysInMonth = new Date(y, m, 0).getDate();
+  const daysRemaining = daysInMonth - now.getDate();
+  const currentMonthKey = monthKeyFromDate(nowISO);
+  const currentMonthObj = MONTHS.find(mm=>mm.key===currentMonthKey);
+
+  const dueSoon = [], dueToday = [], paidToday = [];
+  state.data.wrestlers.forEach(w=>{
+    const c = w.cotisations[currentMonthKey] || {paye:false,pause:false,date:null};
+    if(c.pause) return;
+    if(c.paye){
+      if(c.date === nowISO) paidToday.push(w);
+    } else {
+      if(daysRemaining === 0) dueToday.push(w);
+      else if(daysRemaining>=1 && daysRemaining<=10) dueSoon.push(w);
+    }
+  });
+  return {dueSoon, dueToday, paidToday, currentMonthObj, daysRemaining};
+}
+
+function renderRappelsTab(){
+  const r = computeReminders();
+  const monthFr = r.currentMonthObj ? r.currentMonthObj.fr : '';
+
+  const msgDueSoon = w => `السلام عليكم، تذكير بسيط بخصوص اشتراك شهر ${monthFr} الخاص بـ${w.prenom} ${w.nom} بنادي E.S. Bougara، متبقّى ${r.daysRemaining} أيام على آخر أجل. شكراً لتعاونكم.`;
+  const msgDueToday = w => `السلام عليكم، اليوم هو آخر يوم لتسديد اشتراك شهر ${monthFr} الخاص بـ${w.prenom} ${w.nom} بنادي E.S. Bougara. شكراً.`;
+  const msgPaidToday = w => `السلام عليكم، نشكركم على تسديد اشتراك شهر ${monthFr} الخاص بـ${w.prenom} ${w.nom} بنادي E.S. Bougara. بالتوفيق!`;
+
+  function rowsFor(list, msgBuilder, emptyText, emptyEmoji){
+    if(list.length===0) return `<div class="empty-state"><div class="emoji">${emptyEmoji}</div>${emptyText}</div>`;
+    return `<table class="data-table"><thead><tr><th>Nom</th><th>Prénom</th><th>Tuteur</th><th>Téléphone</th><th></th></tr></thead><tbody>
+      ${list.map(w=>{
+        const text = msgBuilder(w);
+        const link = waLink(w.tuteurTel, text);
+        return `<tr>
+          <td>${escapeHtml(w.nom)}</td><td>${escapeHtml(w.prenom)}</td>
+          <td>${escapeHtml(w.tuteurNom||'—')}</td><td>${escapeHtml(w.tuteurTel||'—')}</td>
+          <td>${link ? `<a href="${link}" target="_blank" rel="noopener" class="btn secondary small">📲 WhatsApp</a>` : `<span style="color:var(--muted);font-size:12px;">Pas de téléphone</span>`}</td>
+        </tr>`;
+      }).join('')}
+    </tbody></table>`;
+  }
+
+  return `
+    <h2>Rappels de cotisation</h2>
+    <div class="desc">Mois en cours : <b>${monthFr}</b>. Cliquez sur "WhatsApp" pour ouvrir un message déjà rédigé au tuteur — il ne reste qu'à l'envoyer.</div>
+
+    <h3 style="margin-top:18px;color:var(--white);">⏳ Échéance dans 10 jours ou moins (${r.dueSoon.length})</h3>
+    ${rowsFor(r.dueSoon, msgDueSoon, 'Aucun rappel à envoyer pour le moment.', '⏳')}
+
+    <h3 style="margin-top:26px;color:var(--white);">🔴 Échéance aujourd'hui (${r.dueToday.length})</h3>
+    ${rowsFor(r.dueToday, msgDueToday, "Aucun judoka concerné aujourd'hui.", '🔴')}
+
+    <h3 style="margin-top:26px;color:var(--white);">✅ Payé aujourd'hui (${r.paidToday.length})</h3>
+    ${rowsFor(r.paidToday, msgPaidToday, "Aucun paiement enregistré aujourd'hui.", '✅')}
   `;
 }
 
@@ -1097,6 +1193,19 @@ function attachHandlers(){
   if(btnPrintByGroup) btnPrintByGroup.onclick = ()=> printByGroup();
   const btnPrintInsurance = document.getElementById('btnPrintInsurance');
   if(btnPrintInsurance) btnPrintInsurance.onclick = ()=> printInsurance();
+  const btnPrintNonInsurance = document.getElementById('btnPrintNonInsurance');
+  if(btnPrintNonInsurance) btnPrintNonInsurance.onclick = ()=> printNonInsurance();
+  document.querySelectorAll('.ins-row').forEach(el=>{
+    el.onclick = ()=>{
+      const w = state.data.wrestlers.find(x=>x.id===el.dataset.toggleIns);
+      if(!w) return;
+      w.assuranceReglee = !w.assuranceReglee;
+      w.dateAssurance = w.assuranceReglee ? todayISO() : '';
+      saveData();
+      render();
+      showToast(w.assuranceReglee ? 'Assurance marquée payée.' : 'Assurance marquée non payée.');
+    };
+  });
 
   // cotisations tab (impayés + recherche)
   const cotisSearchInput = document.getElementById('cotisSearchInput');
@@ -1413,6 +1522,20 @@ function buildAndPrintCards(list){
   setTimeout(finish, 4000); // filet de sécurité si une image tarde à charger
 }
 
+function printNonInsurance(){
+  const notInsured = state.data.wrestlers.filter(w=>!w.assuranceReglee);
+  let html = `<h2>École Sportive Bougara — Judokas non assurés</h2><table><thead><tr>
+    <th>N°</th><th>Nom</th><th>Prénom</th><th>Naissance</th><th>Lieu</th>
+  </tr></thead><tbody>`;
+  notInsured.forEach((w,i)=>{
+    html += `<tr><td>${i+1}</td><td>${escapeHtml(w.nom)}</td><td>${escapeHtml(w.prenom)}</td>
+    <td>${fmtDate(w.dateNaissance)}</td><td>${escapeHtml(w.lieuNaissance||'')}</td></tr>`;
+  });
+  html += `</tbody></table>`;
+  document.getElementById('printArea').innerHTML = html;
+  window.print();
+}
+
 function printInsurance(){
   const insured = state.data.wrestlers.filter(w=>w.assuranceReglee);
   let html = `<h2>École Sportive Bougara — Judokas assurés</h2><table><thead><tr>
@@ -1444,6 +1567,12 @@ function printArchiveRoster(idx){
   html += `</tbody></table>`;
   document.getElementById('printArea').innerHTML = html;
   window.print();
+}
+
+if('serviceWorker' in navigator){
+  window.addEventListener('load', ()=>{
+    navigator.serviceWorker.register('/sw.js').catch(()=>{});
+  });
 }
 
 /* ================= INIT ================= */
