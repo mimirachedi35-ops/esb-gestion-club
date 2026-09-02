@@ -352,6 +352,7 @@ let state = {
   photoDraft: null,
   selectMode: false,
   selectedIds: [],
+  rappelSelected: [],
   toast: null
 };
 
@@ -860,17 +861,27 @@ function renderRappelsTab(){
   const r = computeReminders();
   const monthFr = r.currentMonthObj ? r.currentMonthObj.fr : '';
 
-  const msgDueSoon = w => `السلام عليكم، تذكير بسيط بخصوص اشتراك شهر ${monthFr} الخاص بـ${w.prenom} ${w.nom} بنادي E.S. Bougara، متبقّى ${w._daysRemaining} أيام على آخر أجل. شكراً لتعاونكم.`;
-  const msgDueToday = w => `السلام عليكم، اليوم هو آخر يوم لتسديد اشتراك شهر ${monthFr} الخاص بـ${w.prenom} ${w.nom} بنادي E.S. Bougara. شكراً.`;
-  const msgPaidToday = w => `السلام عليكم، نشكركم على تسديد اشتراك شهر ${monthFr} الخاص بـ${w.prenom} ${w.nom} بنادي E.S. Bougara. بالتوفيق!`;
+  const msgDueSoon = w => `السلام عليكم، تذكير بخصوص اشتراك شهر ${monthFr} الخاص بـ ${w.prenom} ${w.nom} بنادي E.S. Bougara.\nمتبقّي ${w._daysRemaining} أيام على آخر أجل للتسديد. شكراً لتعاونكم.`;
+  const msgDueToday = w => `السلام عليكم، تذكير بخصوص اشتراك شهر ${monthFr} الخاص بـ ${w.prenom} ${w.nom} بنادي E.S. Bougara.\nاليوم هو آخر أجل للتسديد. شكراً لتعاونكم.`;
+  const msgPaidToday = w => `السلام عليكم، بخصوص اشتراك شهر ${monthFr} الخاص بـ ${w.prenom} ${w.nom} بنادي E.S. Bougara.\nنشكركم على التسديد. بالتوفيق!`;
+
+  // table de correspondance id -> {w, message} pour la file d'envoi
+  const allEntries = {};
+  r.dueSoon.forEach(w=>{ allEntries[w.id] = {w, text: msgDueSoon(w)}; });
+  r.dueToday.forEach(w=>{ allEntries[w.id] = {w, text: msgDueToday(w)}; });
+  r.paidToday.forEach(w=>{ allEntries[w.id] = {w, text: msgPaidToday(w)}; });
+
+  const selected = state.rappelSelected.filter(id=>allEntries[id]);
 
   function rowsFor(list, msgBuilder, emptyText, emptyEmoji){
     if(list.length===0) return `<div class="empty-state"><div class="emoji">${emptyEmoji}</div>${emptyText}</div>`;
-    return `<table class="data-table"><thead><tr><th>Nom</th><th>Prénom</th><th>Tuteur</th><th>Téléphone</th><th></th></tr></thead><tbody>
+    return `<table class="data-table"><thead><tr><th></th><th>Nom</th><th>Prénom</th><th>Tuteur</th><th>Téléphone</th><th></th></tr></thead><tbody>
       ${list.map(w=>{
         const text = msgBuilder(w);
         const link = waLink(w.tuteurTel, text);
+        const checked = state.rappelSelected.includes(w.id);
         return `<tr>
+          <td><input type="checkbox" class="rappel-check" data-rappel-id="${w.id}" ${checked?'checked':''}/></td>
           <td>${escapeHtml(w.nom)}</td><td>${escapeHtml(w.prenom)}</td>
           <td>${escapeHtml(w.tuteurNom||'—')}</td><td>${escapeHtml(w.tuteurTel||'—')}</td>
           <td>${link ? `<a href="${link}" target="_blank" rel="noopener" class="btn secondary small">📲 WhatsApp</a>` : `<span style="color:var(--muted);font-size:12px;">Pas de téléphone</span>`}</td>
@@ -879,9 +890,28 @@ function renderRappelsTab(){
     </tbody></table>`;
   }
 
+  const queueHtml = selected.length===0 ? '' : `
+    <div class="section-label" style="margin-top:10px;">File d'envoi — ${selected.length} sélectionné(s)</div>
+    <div class="desc">Cliquez sur "WhatsApp" pour chaque personne l'une après l'autre — WhatsApp n'autorise pas l'envoi groupé automatique, mais vous n'avez plus besoin de les rechercher un par un dans la liste.</div>
+    <table class="data-table"><thead><tr><th>Nom</th><th>Prénom</th><th>Téléphone</th><th></th><th></th></tr></thead><tbody>
+      ${selected.map(id=>{
+        const {w, text} = allEntries[id];
+        const link = waLink(w.tuteurTel, text);
+        return `<tr>
+          <td>${escapeHtml(w.nom)}</td><td>${escapeHtml(w.prenom)}</td><td>${escapeHtml(w.tuteurTel||'—')}</td>
+          <td>${link ? `<a href="${link}" target="_blank" rel="noopener" class="btn small">📲 Envoyer</a>` : `<span style="color:var(--muted);font-size:12px;">Pas de téléphone</span>`}</td>
+          <td><button class="btn ghost small" data-rappel-unselect="${w.id}">✕ Retirer</button></td>
+        </tr>`;
+      }).join('')}
+    </tbody></table>
+    <button class="btn ghost small" id="btnClearRappelSelection" style="margin-top:8px;">Vider la sélection</button>
+  `;
+
   return `
     <h2>Rappels de cotisation</h2>
-    <div class="desc">Mois en cours : <b>${monthFr}</b>. L'échéance de chaque judoka est calculée sur le jour de sa première séance (ex : 1ère séance le 15 → échéance le 15 de chaque mois). Sans date connue, l'échéance par défaut est la fin du mois. Cliquez sur "WhatsApp" pour ouvrir un message déjà rédigé au tuteur — il ne reste qu'à l'envoyer.</div>
+    <div class="desc">Mois en cours : <b>${monthFr}</b>. L'échéance de chaque judoka est calculée sur le jour de sa première séance (ex : 1ère séance le 15 → échéance le 15 de chaque mois). Sans date connue, l'échéance par défaut est la fin du mois. Cochez plusieurs judokas pour préparer une file d'envoi WhatsApp.</div>
+
+    ${queueHtml}
 
     <h3 style="margin-top:18px;color:var(--white);">⏳ Échéance dans 10 jours ou moins (${r.dueSoon.length})</h3>
     ${rowsFor(r.dueSoon, msgDueSoon, 'Aucun rappel à envoyer pour le moment.', '⏳')}
@@ -989,11 +1019,13 @@ function renderReglagesTab(){
 
     ${ (state.data.archives && state.data.archives.length) ? `
     <div class="section-label" style="margin-top:30px;">Saisons archivées</div>
-    <table class="data-table"><thead><tr><th>Saison</th><th>Judokas</th><th>Archivée le</th><th></th></tr></thead>
+    <div class="desc">Si des judokas ont disparu de la liste principale après un archivage, ils sont ici — cliquez sur "Restaurer" pour les remettre dans la saison active.</div>
+    <table class="data-table"><thead><tr><th>Saison</th><th>Judokas</th><th>Archivée le</th><th></th><th></th></tr></thead>
     <tbody>
       ${state.data.archives.map((a,i)=>`<tr>
         <td>${a.refYear}/${a.refYear+1}</td><td>${a.wrestlers.length}</td><td>${fmtDate(a.archivedAt)}</td>
         <td><button class="btn ghost small" data-archive-idx="${i}">Imprimer la liste</button></td>
+        <td><button class="btn secondary small" data-restore-idx="${i}">↩️ Restaurer dans la saison active</button></td>
       </tr>`).join('')}
     </tbody></table>` : '' }
   `;
@@ -1203,6 +1235,25 @@ function attachHandlers(){
   if(btnPrintRoster) btnPrintRoster.onclick = ()=> printRoster();
   const btnPrintByGroup = document.getElementById('btnPrintByGroup');
   if(btnPrintByGroup) btnPrintByGroup.onclick = ()=> printByGroup();
+  document.querySelectorAll('.rappel-check').forEach(el=>{
+    el.onchange = ()=>{
+      const id = el.dataset.rappelId;
+      const i = state.rappelSelected.indexOf(id);
+      if(el.checked && i<0) state.rappelSelected.push(id);
+      if(!el.checked && i>=0) state.rappelSelected.splice(i,1);
+      render();
+    };
+  });
+  document.querySelectorAll('[data-rappel-unselect]').forEach(el=>{
+    el.onclick = ()=>{
+      const id = el.dataset.rappelUnselect;
+      state.rappelSelected = state.rappelSelected.filter(x=>x!==id);
+      render();
+    };
+  });
+  const btnClearRappel = document.getElementById('btnClearRappelSelection');
+  if(btnClearRappel) btnClearRappel.onclick = ()=>{ state.rappelSelected = []; render(); };
+
   const btnPrintInsurance = document.getElementById('btnPrintInsurance');
   if(btnPrintInsurance) btnPrintInsurance.onclick = ()=> printInsurance();
   const btnPrintNonInsurance = document.getElementById('btnPrintNonInsurance');
@@ -1323,7 +1374,8 @@ function attachHandlers(){
   const btnNewSeason = document.getElementById('btnNewSeason');
   if(btnNewSeason) btnNewSeason.onclick = ()=>{
     const cur = state.data.settings.refYear;
-    if(confirm('Archiver la saison '+cur+'/'+(cur+1)+' et démarrer une nouvelle saison vide '+(cur+1)+'/'+(cur+2)+' ?\nCette action est sans risque : rien n\'est supprimé, tout est archivé.')){
+    const sure = prompt('⚠️ ATTENTION : cette action retire immédiatement tous les judokas et séances de la liste active de la saison '+cur+'/'+(cur+1)+' (ils seront archivés, pas supprimés, et resteront récupérables via "Restaurer").\n\nUne saison vide '+(cur+1)+'/'+(cur+2)+' sera créée.\n\nPour confirmer, tapez exactement : CONFIRMER');
+    if(sure === 'CONFIRMER'){
       state.data.archives.unshift({
         refYear: cur,
         wrestlers: state.data.wrestlers,
@@ -1335,12 +1387,32 @@ function attachHandlers(){
       state.data.settings.refYear = cur + 1;
       saveData();
       render();
-      showToast('Nouvelle saison démarrée — ancienne saison archivée.');
+      showToast('Nouvelle saison démarrée — ancienne saison archivée (récupérable).');
+    } else if(sure !== null){
+      alert('Action annulée : le texte tapé ne correspond pas à "CONFIRMER".');
     }
   };
 
   document.querySelectorAll('[data-archive-idx]').forEach(el=>{
     el.onclick = ()=> printArchiveRoster(parseInt(el.dataset.archiveIdx,10));
+  });
+
+  document.querySelectorAll('[data-restore-idx]').forEach(el=>{
+    el.onclick = ()=>{
+      const idx = parseInt(el.dataset.restoreIdx,10);
+      const a = state.data.archives[idx];
+      if(!a) return;
+      if(!confirm('Remettre les '+a.wrestlers.length+' judokas de la saison '+a.refYear+'/'+(a.refYear+1)+' dans la liste active ? (les judokas déjà présents ne seront pas dupliqués)')) return;
+      const existingIds = new Set(state.data.wrestlers.map(w=>w.id));
+      let added = 0;
+      a.wrestlers.forEach(w=>{
+        if(!existingIds.has(w.id)){ state.data.wrestlers.push(w); added++; }
+      });
+      state.data.archives.splice(idx,1);
+      saveData();
+      render();
+      showToast(added+' judoka(s) restauré(s) dans la saison active.');
+    };
   });
 }
 
