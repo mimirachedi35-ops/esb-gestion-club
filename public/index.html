@@ -821,12 +821,19 @@ function waLink(tel, text){
   return 'https://wa.me/' + n + '?text=' + encodeURIComponent(text);
 }
 
+function dueDayForWrestler(w){
+  if(w.datePremiereSeance){
+    const d = parseInt(w.datePremiereSeance.slice(8,10),10);
+    if(d>=1 && d<=31) return d;
+  }
+  return null; // pas de date connue -> on utilise le dernier jour du mois par défaut
+}
+
 function computeReminders(){
   const nowISO = todayISO();
   const now = new Date();
   const y = now.getFullYear(), m = now.getMonth()+1;
   const daysInMonth = new Date(y, m, 0).getDate();
-  const daysRemaining = daysInMonth - now.getDate();
   const currentMonthKey = monthKeyFromDate(nowISO);
   const currentMonthObj = MONTHS.find(mm=>mm.key===currentMonthKey);
 
@@ -836,19 +843,24 @@ function computeReminders(){
     if(c.pause) return;
     if(c.paye){
       if(c.date === nowISO) paidToday.push(w);
-    } else {
-      if(daysRemaining === 0) dueToday.push(w);
-      else if(daysRemaining>=1 && daysRemaining<=10) dueSoon.push(w);
+      return;
+    }
+    const anchor = dueDayForWrestler(w);
+    const dueDay = anchor ? Math.min(anchor, daysInMonth) : daysInMonth;
+    const daysRemaining = dueDay - now.getDate();
+    if(daysRemaining === 0) dueToday.push(w);
+    else if(daysRemaining>=1 && daysRemaining<=10){
+      dueSoon.push({...w, _daysRemaining: daysRemaining});
     }
   });
-  return {dueSoon, dueToday, paidToday, currentMonthObj, daysRemaining};
+  return {dueSoon, dueToday, paidToday, currentMonthObj};
 }
 
 function renderRappelsTab(){
   const r = computeReminders();
   const monthFr = r.currentMonthObj ? r.currentMonthObj.fr : '';
 
-  const msgDueSoon = w => `السلام عليكم، تذكير بسيط بخصوص اشتراك شهر ${monthFr} الخاص بـ${w.prenom} ${w.nom} بنادي E.S. Bougara، متبقّى ${r.daysRemaining} أيام على آخر أجل. شكراً لتعاونكم.`;
+  const msgDueSoon = w => `السلام عليكم، تذكير بسيط بخصوص اشتراك شهر ${monthFr} الخاص بـ${w.prenom} ${w.nom} بنادي E.S. Bougara، متبقّى ${w._daysRemaining} أيام على آخر أجل. شكراً لتعاونكم.`;
   const msgDueToday = w => `السلام عليكم، اليوم هو آخر يوم لتسديد اشتراك شهر ${monthFr} الخاص بـ${w.prenom} ${w.nom} بنادي E.S. Bougara. شكراً.`;
   const msgPaidToday = w => `السلام عليكم، نشكركم على تسديد اشتراك شهر ${monthFr} الخاص بـ${w.prenom} ${w.nom} بنادي E.S. Bougara. بالتوفيق!`;
 
@@ -869,7 +881,7 @@ function renderRappelsTab(){
 
   return `
     <h2>Rappels de cotisation</h2>
-    <div class="desc">Mois en cours : <b>${monthFr}</b>. Cliquez sur "WhatsApp" pour ouvrir un message déjà rédigé au tuteur — il ne reste qu'à l'envoyer.</div>
+    <div class="desc">Mois en cours : <b>${monthFr}</b>. L'échéance de chaque judoka est calculée sur le jour de sa première séance (ex : 1ère séance le 15 → échéance le 15 de chaque mois). Sans date connue, l'échéance par défaut est la fin du mois. Cliquez sur "WhatsApp" pour ouvrir un message déjà rédigé au tuteur — il ne reste qu'à l'envoyer.</div>
 
     <h3 style="margin-top:18px;color:var(--white);">⏳ Échéance dans 10 jours ou moins (${r.dueSoon.length})</h3>
     ${rowsFor(r.dueSoon, msgDueSoon, 'Aucun rappel à envoyer pour le moment.', '⏳')}
