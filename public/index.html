@@ -379,6 +379,8 @@ function emptyCotisations(){
   return o;
 }
 
+let dataLoadedOk = false;
+
 async function loadData(){
   try{
     const res = await fetch('/api/data');
@@ -389,16 +391,24 @@ async function loadData(){
         if(!state.data.settings.numGroups) state.data.settings.numGroups = 4;
         if(!state.data.archives) state.data.archives = [];
       }
+      dataLoadedOk = true; // succès même si parsed est vide (tout premier lancement du club)
+    } else {
+      dataLoadedOk = false;
     }
   }catch(e){
-    // pas encore de données -> on démarre avec une base vide
+    dataLoadedOk = false;
   }
   state.loading = false;
+  state.loadError = !dataLoadedOk;
   render();
 }
 
 let saveTimer = null;
 function saveData(){
+  if(!dataLoadedOk){
+    alert("⚠️ Enregistrement bloqué : les données n'ont pas pu être chargées correctement au démarrage (connexion instable ou serveur qui redémarre). Pour éviter d'effacer les judokas déjà enregistrés, rien n'a été envoyé.\n\nRechargez complètement la page (tirez vers le bas ou appuyez sur Actualiser) et réessayez.");
+    return;
+  }
   clearTimeout(saveTimer);
   saveTimer = setTimeout(async ()=>{
     try{
@@ -498,6 +508,19 @@ function render(){
   }
   if(state.loading){
     root.innerHTML = `<div class="login-wrap"><div style="color:var(--muted)">Chargement…</div></div>`;
+    return;
+  }
+  if(state.loadError){
+    root.innerHTML = `<div class="login-wrap"><div class="login-card" style="max-width:420px;">
+      <div style="font-size:40px;">⚠️</div>
+      <div class="club-name" style="color:#ff6b6b;">Échec du chargement des données</div>
+      <div style="color:var(--muted);font-size:13px;margin-top:10px;line-height:1.6;">
+        Impossible de récupérer les données du club depuis le serveur (connexion instable, ou le serveur redémarre après une période d'inactivité).<br><br>
+        <b>Ne rien modifier ni enregistrer maintenant</b> — cela pourrait effacer les judokas déjà enregistrés.
+        Rechargez la page et réessayez.
+      </div>
+      <button class="btn small" style="margin-top:16px;" onclick="location.reload()">🔄 Recharger la page</button>
+    </div></div>`;
     return;
   }
   if(!state.role){
